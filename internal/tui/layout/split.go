@@ -1,14 +1,16 @@
 package layout
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"image/color"
+
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 )
 
 type SplitPaneLayout interface {
-	tea.Model
+	ModelWithView
 	Sizeable
 	Bindings
 	SetLeftPanel(panel Container) tea.Cmd
@@ -30,7 +32,7 @@ type splitPaneLayout struct {
 	leftPanel   Container
 	bottomPanel Container
 
-	backgroundColor lipgloss.TerminalColor
+	backgroundColor color.Color
 }
 
 type SplitPaneOption func(*splitPaneLayout)
@@ -270,7 +272,7 @@ func WithRatio(ratio float64) SplitPaneOption {
 	}
 }
 
-func WithSplitBackgroundColor(color lipgloss.TerminalColor) SplitPaneOption {
+func WithSplitBackgroundColor(color color.Color) SplitPaneOption {
 	return func(s *splitPaneLayout) {
 		s.backgroundColor = color
 	}

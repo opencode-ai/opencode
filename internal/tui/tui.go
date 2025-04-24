@@ -3,9 +3,9 @@ package tui
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/app"
 	"github.com/kujtimiihoxha/opencode/internal/config"
 	"github.com/kujtimiihoxha/opencode/internal/logging"
@@ -16,6 +16,7 @@ import (
 	"github.com/kujtimiihoxha/opencode/internal/tui/components/dialog"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/page"
+	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 	"github.com/kujtimiihoxha/opencode/internal/tui/util"
 )
 
@@ -72,7 +73,7 @@ type appModel struct {
 	width, height int
 	currentPage   page.PageID
 	previousPage  page.PageID
-	pages         map[page.PageID]tea.Model
+	pages         map[page.PageID]layout.ModelWithView
 	loadedPages   map[page.PageID]bool
 	status        core.StatusCmp
 	app           *app.App
@@ -91,14 +92,17 @@ type appModel struct {
 
 	showCommandDialog bool
 	commandDialog     dialog.CommandDialog
-	commands          []dialog.Command
+
+	commands []dialog.Command
 
 	showInitDialog bool
 	initDialog     dialog.InitDialogCmp
 }
 
 func (a appModel) Init() tea.Cmd {
-	var cmds []tea.Cmd
+	cmds := []tea.Cmd{
+		tea.SetBackgroundColor(styles.Background),
+	}
 	cmd := a.pages[a.currentPage].Init()
 	a.loadedPages[a.currentPage] = true
 	cmds = append(cmds, cmd)
@@ -140,7 +144,8 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		s, _ := a.status.Update(msg)
 		a.status = s.(core.StatusCmp)
-		a.pages[a.currentPage], cmd = a.pages[a.currentPage].Update(msg)
+		p, cmd := a.pages[a.currentPage].Update(msg)
+		a.pages[a.currentPage] = p.(layout.ModelWithView)
 		cmds = append(cmds, cmd)
 
 		prm, permCmd := a.permissions.Update(msg)
@@ -417,7 +422,8 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	s, _ := a.status.Update(msg)
 	a.status = s.(core.StatusCmp)
-	a.pages[a.currentPage], cmd = a.pages[a.currentPage].Update(msg)
+	p, cmd := a.pages[a.currentPage].Update(msg)
+	a.pages[a.currentPage] = p.(layout.ModelWithView)
 	cmds = append(cmds, cmd)
 	return a, tea.Batch(cmds...)
 }
@@ -581,7 +587,7 @@ func New(app *app.App) tea.Model {
 		initDialog:    dialog.NewInitDialogCmp(),
 		app:           app,
 		commands:      []dialog.Command{},
-		pages: map[page.PageID]tea.Model{
+		pages: map[page.PageID]layout.ModelWithView{
 			page.ChatPage: page.NewChatPage(app),
 			page.LogsPage: page.NewLogsPage(),
 		},

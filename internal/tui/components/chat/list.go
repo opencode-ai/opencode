@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/spinner"
+	"github.com/charmbracelet/bubbles/v2/viewport"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/app"
 	"github.com/kujtimiihoxha/opencode/internal/message"
 	"github.com/kujtimiihoxha/opencode/internal/pubsub"
 	"github.com/kujtimiihoxha/opencode/internal/session"
+	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 	"github.com/kujtimiihoxha/opencode/internal/tui/util"
 )
@@ -389,8 +390,8 @@ func (m *messagesCmp) SetSize(width, height int) tea.Cmd {
 	}
 	m.width = width
 	m.height = height
-	m.viewport.Width = width
-	m.viewport.Height = height - 2
+	m.viewport.SetWidth(width)
+	m.viewport.SetHeight(height - 2)
 	for _, msg := range m.messages {
 		delete(m.cachedContent, msg.ID)
 	}
@@ -431,10 +432,10 @@ func (m *messagesCmp) BindingKeys() []key.Binding {
 	}
 }
 
-func NewMessagesCmp(app *app.App) tea.Model {
+func NewMessagesCmp(app *app.App) layout.ModelWithView {
 	s := spinner.New()
 	s.Spinner = spinner.Pulse
-	vp := viewport.New(0, 0)
+	vp := viewport.New()
 	vp.KeyMap.PageUp = messageKeys.PageUp
 	vp.KeyMap.PageDown = messageKeys.PageDown
 	vp.KeyMap.HalfPageUp = messageKeys.HalfPageUp

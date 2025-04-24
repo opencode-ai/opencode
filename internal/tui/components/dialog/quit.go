@@ -3,9 +3,9 @@ package dialog
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 	"github.com/kujtimiihoxha/opencode/internal/tui/util"
@@ -16,7 +16,7 @@ const question = "Are you sure you want to quit?"
 type CloseQuitMsg struct{}
 
 type QuitDialog interface {
-	tea.Model
+	layout.ModelWithView
 	layout.Bindings
 }
 

@@ -3,8 +3,8 @@ package page
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/kujtimiihoxha/opencode/internal/app"
 	"github.com/kujtimiihoxha/opencode/internal/session"
 	"github.com/kujtimiihoxha/opencode/internal/tui/components/chat"
@@ -137,7 +137,7 @@ func (p *chatPage) BindingKeys() []key.Binding {
 	return bindings
 }
 
-func NewChatPage(app *app.App) tea.Model {
+func NewChatPage(app *app.App) layout.ModelWithView {
 	messagesContainer := layout.NewContainer(
 		chat.NewMessagesCmp(app),
 		layout.WithPadding(1, 1, 0, 1),

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/config"
 	"github.com/kujtimiihoxha/opencode/internal/llm/models"
 	"github.com/kujtimiihoxha/opencode/internal/lsp"
@@ -14,12 +14,13 @@ import (
 	"github.com/kujtimiihoxha/opencode/internal/pubsub"
 	"github.com/kujtimiihoxha/opencode/internal/session"
 	"github.com/kujtimiihoxha/opencode/internal/tui/components/chat"
+	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 	"github.com/kujtimiihoxha/opencode/internal/tui/util"
 )
 
 type StatusCmp interface {
-	tea.Model
+	layout.ModelWithView
 	SetHelpMsg(string)
 }
 

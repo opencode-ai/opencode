@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/kujtimiihoxha/opencode/internal/config"
 	"github.com/kujtimiihoxha/opencode/internal/session"

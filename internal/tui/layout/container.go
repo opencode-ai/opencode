@@ -1,22 +1,30 @@
 package layout
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"image/color"
+
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 )
 
-type Container interface {
+type ModelWithView interface {
 	tea.Model
+	tea.ViewModel
+}
+
+type Container interface {
+	ModelWithView
 	Sizeable
 	Bindings
 }
+
 type container struct {
 	width  int
 	height int
 
-	content tea.Model
+	content ModelWithView
 
 	// Style options
 	paddingTop    int
@@ -29,9 +37,9 @@ type container struct {
 	borderBottom bool
 	borderLeft   bool
 	borderStyle  lipgloss.Border
-	borderColor  lipgloss.TerminalColor
+	borderColor  color.Color
 
-	backgroundColor lipgloss.TerminalColor
+	backgroundColor color.Color
 }
 
 func (c *container) Init() tea.Cmd {
@@ -40,7 +48,7 @@ func (c *container) Init() tea.Cmd {
 
 func (c *container) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	u, cmd := c.content.Update(msg)
-	c.content = u
+	c.content = u.(ModelWithView)
 	return c, cmd
 }
 
@@ -131,7 +139,7 @@ func (c *container) BindingKeys() []key.Binding {
 
 type ContainerOption func(*container)
 
-func NewContainer(content tea.Model, options ...ContainerOption) Container {
+func NewContainer(content ModelWithView, options ...ContainerOption) Container {
 	c := &container{
 		content:         content,
 		borderColor:     styles.BorderColor,
@@ -201,7 +209,7 @@ func WithBorderStyle(style lipgloss.Border) ContainerOption {
 	}
 }
 
-func WithBorderColor(color lipgloss.TerminalColor) ContainerOption {
+func WithBorderColor(color color.Color) ContainerOption {
 	return func(c *container) {
 		c.borderColor = color
 	}
@@ -219,7 +227,7 @@ func WithDoubleBorder() ContainerOption {
 	return WithBorderStyle(lipgloss.DoubleBorder())
 }
 
-func WithBackgroundColor(color lipgloss.TerminalColor) ContainerOption {
+func WithBackgroundColor(color color.Color) ContainerOption {
 	return func(c *container) {
 		c.backgroundColor = color
 	}

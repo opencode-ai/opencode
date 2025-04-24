@@ -11,11 +11,11 @@ require (
 	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.2
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/catppuccin/go v0.3.0
-	github.com/charmbracelet/bubbles v0.20.0
-	github.com/charmbracelet/bubbletea v1.3.4
+	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1
+	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta1
 	github.com/charmbracelet/glamour v0.9.1
 	github.com/charmbracelet/huh v0.6.0
-	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta1
 	github.com/charmbracelet/x/ansi v0.8.0
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/go-git/go-git/v5 v5.15.0
@@ -66,10 +66,15 @@ require (
 	github.com/aws/smithy-go v1.20.3 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
-	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
+	github.com/charmbracelet/bubbles v0.20.0 // indirect
+	github.com/charmbracelet/bubbletea v1.3.4 // indirect
+	github.com/charmbracelet/colorprofile v0.3.0 // indirect
+	github.com/charmbracelet/lipgloss v1.1.0 // indirect
+	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
+	github.com/charmbracelet/x/input v0.3.4 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
+	github.com/charmbracelet/x/windows v0.2.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

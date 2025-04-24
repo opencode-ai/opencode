@@ -3,9 +3,10 @@ package dialog
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 )
 
@@ -120,7 +121,7 @@ func (h *helpCmp) render() string {
 		pairs = append(pairs, pair)
 	}
 
-	// https://github.com/charmbracelet/lipgloss/issues/209
+	// https://github.com/charmbracelet/lipgloss/v2/issues/209
 	if len(pairs) > 1 {
 		prefix := pairs[:len(pairs)-1]
 		lastPair := pairs[len(pairs)-1]
@@ -130,7 +131,7 @@ func (h *helpCmp) render() string {
 			lipgloss.Left,              // x
 			lipgloss.Top,               // y
 			lastPair,                   // content
-			lipgloss.WithWhitespaceBackground(styles.Background), // background
+			lipgloss.WithWhitespaceStyle(styles.BaseStyle), // background
 		))
 		content := styles.BaseStyle.Width(h.width).Render(
 			lipgloss.JoinHorizontal(
@@ -173,7 +174,7 @@ func (h *helpCmp) View() string {
 }
 
 type HelpCmp interface {
-	tea.Model
+	layout.ModelWithView
 	SetBindings([]key.Binding)
 }
 

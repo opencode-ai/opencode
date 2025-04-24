@@ -1,9 +1,9 @@
 package page
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/tui/components/logs"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
@@ -12,7 +12,7 @@ import (
 var LogsPage PageID = "logs"
 
 type LogPage interface {
-	tea.Model
+	layout.ModelWithView
 	layout.Sizeable
 	layout.Bindings
 }

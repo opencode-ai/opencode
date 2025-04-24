@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/table"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/kujtimiihoxha/opencode/internal/logging"
 	"github.com/kujtimiihoxha/opencode/internal/pubsub"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
@@ -15,7 +15,7 @@ import (
 )
 
 type TableComponent interface {
-	tea.Model
+	layout.ModelWithView
 	layout.Sizeable
 	layout.Bindings
 }

@@ -1,9 +1,9 @@
 package dialog
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 	"github.com/kujtimiihoxha/opencode/internal/tui/util"
@@ -27,7 +27,7 @@ type CloseCommandDialogMsg struct{}
 
 // CommandDialog interface for the command selection dialog
 type CommandDialog interface {
-	tea.Model
+	layout.ModelWithView
 	layout.Bindings
 	SetCommands(commands []Command)
 	SetSelectedCommand(commandID string)

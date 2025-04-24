@@ -5,17 +5,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/viewport"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/logging"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
 	"github.com/kujtimiihoxha/opencode/internal/tui/styles"
 )
 
 type DetailComponent interface {
-	tea.Model
+	layout.ModelWithView
 	layout.Sizeable
 	layout.Bindings
 }
@@ -122,8 +122,8 @@ func (i *detailCmp) GetSize() (int, int) {
 func (i *detailCmp) SetSize(width int, height int) tea.Cmd {
 	i.width = width
 	i.height = height
-	i.viewport.Width = i.width
-	i.viewport.Height = i.height
+	i.viewport.SetWidth(i.width)
+	i.viewport.SetHeight(i.height)
 	i.updateContent()
 	return nil
 }
@@ -134,6 +134,6 @@ func (i *detailCmp) BindingKeys() []key.Binding {
 
 func NewLogsDetails() DetailComponent {
 	return &detailCmp{
-		viewport: viewport.New(0, 0),
+		viewport: viewport.New(),
 	}
 }

@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -81,27 +82,27 @@ type linePair struct {
 type StyleConfig struct {
 	ShowHeader     bool
 	ShowHunkHeader bool
-	FileNameFg     lipgloss.Color
+	FileNameFg     color.Color
 	// Background colors
-	RemovedLineBg       lipgloss.Color
-	AddedLineBg         lipgloss.Color
-	ContextLineBg       lipgloss.Color
-	HunkLineBg          lipgloss.Color
-	RemovedLineNumberBg lipgloss.Color
-	AddedLineNamerBg    lipgloss.Color
+	RemovedLineBg       color.Color
+	AddedLineBg         color.Color
+	ContextLineBg       color.Color
+	HunkLineBg          color.Color
+	RemovedLineNumberBg color.Color
+	AddedLineNamerBg    color.Color
 
 	// Foreground colors
-	HunkLineFg         lipgloss.Color
-	RemovedFg          lipgloss.Color
-	AddedFg            lipgloss.Color
-	LineNumberFg       lipgloss.Color
-	RemovedHighlightFg lipgloss.Color
-	AddedHighlightFg   lipgloss.Color
+	HunkLineFg         color.Color
+	RemovedFg          color.Color
+	AddedFg            color.Color
+	LineNumberFg       color.Color
+	RemovedHighlightFg color.Color
+	AddedHighlightFg   color.Color
 
 	// Highlight settings
 	HighlightStyle     string
-	RemovedHighlightBg lipgloss.Color
-	AddedHighlightBg   lipgloss.Color
+	RemovedHighlightBg color.Color
+	AddedHighlightBg   color.Color
 }
 
 // StyleOption is a function that modifies a StyleConfig
@@ -140,31 +141,31 @@ func NewStyleConfig(opts ...StyleOption) StyleConfig {
 }
 
 // Style option functions
-func WithFileNameFg(color lipgloss.Color) StyleOption {
+func WithFileNameFg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.FileNameFg = color }
 }
 
-func WithRemovedLineBg(color lipgloss.Color) StyleOption {
+func WithRemovedLineBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.RemovedLineBg = color }
 }
 
-func WithAddedLineBg(color lipgloss.Color) StyleOption {
+func WithAddedLineBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.AddedLineBg = color }
 }
 
-func WithContextLineBg(color lipgloss.Color) StyleOption {
+func WithContextLineBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.ContextLineBg = color }
 }
 
-func WithRemovedFg(color lipgloss.Color) StyleOption {
+func WithRemovedFg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.RemovedFg = color }
 }
 
-func WithAddedFg(color lipgloss.Color) StyleOption {
+func WithAddedFg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.AddedFg = color }
 }
 
-func WithLineNumberFg(color lipgloss.Color) StyleOption {
+func WithLineNumberFg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.LineNumberFg = color }
 }
 
@@ -172,33 +173,33 @@ func WithHighlightStyle(style string) StyleOption {
 	return func(s *StyleConfig) { s.HighlightStyle = style }
 }
 
-func WithRemovedHighlightColors(bg, fg lipgloss.Color) StyleOption {
+func WithRemovedHighlightColors(bg, fg color.Color) StyleOption {
 	return func(s *StyleConfig) {
 		s.RemovedHighlightBg = bg
 		s.RemovedHighlightFg = fg
 	}
 }
 
-func WithAddedHighlightColors(bg, fg lipgloss.Color) StyleOption {
+func WithAddedHighlightColors(bg, fg color.Color) StyleOption {
 	return func(s *StyleConfig) {
 		s.AddedHighlightBg = bg
 		s.AddedHighlightFg = fg
 	}
 }
 
-func WithRemovedLineNumberBg(color lipgloss.Color) StyleOption {
+func WithRemovedLineNumberBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.RemovedLineNumberBg = color }
 }
 
-func WithAddedLineNumberBg(color lipgloss.Color) StyleOption {
+func WithAddedLineNumberBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.AddedLineNamerBg = color }
 }
 
-func WithHunkLineBg(color lipgloss.Color) StyleOption {
+func WithHunkLineBg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.HunkLineBg = color }
 }
 
-func WithHunkLineFg(color lipgloss.Color) StyleOption {
+func WithHunkLineFg(color color.Color) StyleOption {
 	return func(s *StyleConfig) { s.HunkLineFg = color }
 }
 
@@ -480,7 +481,7 @@ func pairLines(lines []DiffLine) []linePair {
 // -------------------------------------------------------------------------
 
 // SyntaxHighlight applies syntax highlighting to text based on file extension
-func SyntaxHighlight(w io.Writer, source, fileName, formatter string, bg lipgloss.TerminalColor) error {
+func SyntaxHighlight(w io.Writer, source, fileName, formatter string, bg color.Color) error {
 	// Determine the language lexer to use
 	l := lexers.Match(fileName)
 	if l == nil {
@@ -605,7 +606,7 @@ func SyntaxHighlight(w io.Writer, source, fileName, formatter string, bg lipglos
 }
 
 // highlightLine applies syntax highlighting to a single line
-func highlightLine(fileName string, line string, bg lipgloss.TerminalColor) string {
+func highlightLine(fileName string, line string, bg color.Color) string {
 	var buf bytes.Buffer
 	err := SyntaxHighlight(&buf, line, fileName, "terminal16m", bg)
 	if err != nil {
@@ -629,7 +630,7 @@ func createStyles(config StyleConfig) (removedLineStyle, addedLineStyle, context
 // -------------------------------------------------------------------------
 
 // applyHighlighting applies intra-line highlighting to a piece of text
-func applyHighlighting(content string, segments []Segment, segmentType LineType, highlightBg lipgloss.Color,
+func applyHighlighting(content string, segments []Segment, segmentType LineType, highlightBg color.Color,
 ) string {
 	// Find all ANSI sequences in the content
 	ansiRegex := regexp.MustCompile(`\x1b(?:[@-Z\\-_]|\[[0-9?]*(?:;[0-9?]*)*[@-~])`)

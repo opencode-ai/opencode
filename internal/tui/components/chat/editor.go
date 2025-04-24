@@ -4,10 +4,10 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/textarea"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/kujtimiihoxha/opencode/internal/app"
 	"github.com/kujtimiihoxha/opencode/internal/session"
 	"github.com/kujtimiihoxha/opencode/internal/tui/layout"
@@ -155,19 +155,19 @@ func (m *editorCmp) BindingKeys() []key.Binding {
 	return bindings
 }
 
-func NewEditorCmp(app *app.App) tea.Model {
+func NewEditorCmp(app *app.App) layout.ModelWithView {
 	ti := textarea.New()
 	ti.Prompt = " "
 	ti.ShowLineNumbers = false
-	ti.BlurredStyle.Base = ti.BlurredStyle.Base.Background(styles.Background)
-	ti.BlurredStyle.CursorLine = ti.BlurredStyle.CursorLine.Background(styles.Background)
-	ti.BlurredStyle.Placeholder = ti.BlurredStyle.Placeholder.Background(styles.Background)
-	ti.BlurredStyle.Text = ti.BlurredStyle.Text.Background(styles.Background)
+	ti.Styles.Blurred.Base = ti.Styles.Blurred.Base.Background(styles.Background)
+	ti.Styles.Blurred.CursorLine = ti.Styles.Blurred.CursorLine.Background(styles.Background)
+	ti.Styles.Blurred.Placeholder = ti.Styles.Blurred.Placeholder.Background(styles.Background)
+	ti.Styles.Blurred.Text = ti.Styles.Blurred.Text.Background(styles.Background)
 
-	ti.FocusedStyle.Base = ti.FocusedStyle.Base.Background(styles.Background)
-	ti.FocusedStyle.CursorLine = ti.FocusedStyle.CursorLine.Background(styles.Background)
-	ti.FocusedStyle.Placeholder = ti.FocusedStyle.Placeholder.Background(styles.Background)
-	ti.FocusedStyle.Text = ti.BlurredStyle.Text.Background(styles.Background)
+	ti.Styles.Focused.Base = ti.Styles.Focused.Base.Background(styles.Background)
+	ti.Styles.Focused.CursorLine = ti.Styles.Focused.CursorLine.Background(styles.Background)
+	ti.Styles.Focused.Placeholder = ti.Styles.Focused.Placeholder.Background(styles.Background)
+	ti.Styles.Focused.Text = ti.Styles.Focused.Text.Background(styles.Background)
 	ti.CharLimit = -1
 	ti.Focus()
 	return &editorCmp{

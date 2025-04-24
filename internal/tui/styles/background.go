@@ -2,15 +2,14 @@ package styles
 
 import (
 	"fmt"
+	"image/color"
 	"regexp"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-func getColorRGB(c lipgloss.TerminalColor) (uint8, uint8, uint8) {
+func getColorRGB(c color.Color) (uint8, uint8, uint8) {
 	r, g, b, a := c.RGBA()
 
 	// Un-premultiply alpha if needed
@@ -26,7 +25,8 @@ func getColorRGB(c lipgloss.TerminalColor) (uint8, uint8, uint8) {
 
 // ForceReplaceBackgroundWithLipgloss replaces any ANSI background color codes
 // in `input` with a single 24‑bit background (48;2;R;G;B).
-func ForceReplaceBackgroundWithLipgloss(input string, newBgColor lipgloss.TerminalColor) string {
+func ForceReplaceBackgroundWithLipgloss(input string, newBgColor color.Color) string {
+	return input
 	// Precompute our new-bg sequence once
 	r, g, b := getColorRGB(newBgColor)
 	newBg := fmt.Sprintf("48;2;%d;%d;%d", r, g, b)
