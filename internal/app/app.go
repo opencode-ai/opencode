@@ -3,12 +3,16 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"maps"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/db"
+	"github.com/opencode-ai/opencode/internal/format"
 	"github.com/opencode-ai/opencode/internal/history"
 	"github.com/opencode-ai/opencode/internal/llm/agent"
 	"github.com/opencode-ai/opencode/internal/logging"
@@ -91,6 +95,66 @@ func (app *App) initTheme() {
 	} else {
 		logging.Debug("Set theme from config", "theme", cfg.TUI.Theme)
 	}
+}
+
+// RunNonInteractive handles the execution flow when a prompt is provided via CLI flag.
+func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat string) error {
+	logging.Info("Running in non-interactive mode")
+
+	const maxPromptLengthForTitle = 100
+	titlePrefix := "Non-interactive: "
+	var titleSuffix string
+
+	if len(prompt) > maxPromptLengthForTitle {
+		titleSuffix = prompt[:maxPromptLengthForTitle] + "..."
+	} else {
+		titleSuffix = prompt
+	}
+	title := titlePrefix + titleSuffix
+
+	sess, err := a.Sessions.Create(ctx, title)
+	if err != nil {
+		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
+	}
+	logging.Info("Created session for non-interactive run", "session_id", sess.ID)
+
+	// Automatically approve all permission requests for this non-interactive session
+	a.Permissions.AutoApproveSession(sess.ID)
+
+	done, err := a.CoderAgent.Run(ctx, sess.ID, prompt)
+	if err != nil {
+		return fmt.Errorf("failed to start agent processing stream: %w", err)
+	}
+
+	result := <-done
+	if result.Err() != nil {
+		if errors.Is(result.Err(), context.Canceled) || errors.Is(result.Err(), agent.ErrRequestCancelled) {
+			logging.Info("Agent processing cancelled", "session_id", sess.ID)
+			return nil
+		}
+		return fmt.Errorf("agent processing failed: %w", result.Err())
+	}
+
+	response := result.Response()
+
+	// Use a strings.Builder to accumulate the text parts
+	var builder strings.Builder
+	for _, part := range response.Parts {
+		if textPart, ok := part.(message.TextContent); ok {
+			builder.WriteString(textPart.Text)
+		}
+	}
+
+	// Format and print the final accumulated text
+	if builder.Len() > 0 {
+		content := builder.String()
+		formattedOutput := format.FormatOutput(content, outputFormat)
+		fmt.Println(formattedOutput)
+	}
+
+	logging.Info("Non-interactive run completed", "session_id", sess.ID)
+
+	return nil
 }
 
 // Shutdown performs a clean shutdown of the application
