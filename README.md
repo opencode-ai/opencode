@@ -204,7 +204,7 @@ OpenCode supports a variety of AI models from different providers:
 - O3 family (o3, o3-mini)
 - O4 Mini
 
-## Usage
+## Interactive Mode Usage
 
 ```bash
 # Start OpenCode
@@ -217,13 +217,40 @@ opencode -d
 opencode -c /path/to/project
 ```
 
+## Non-interactive Prompt Mode
+
+You can run OpenCode in non-interactive mode by passing a prompt directly as a command-line argument. This is useful for scripting, automation, or when you want a quick answer without launching the full TUI.
+
+```bash
+# Run a single prompt and print the AI's response to the terminal
+opencode -p "Explain the use of context in Go"
+
+# Get response in JSON format
+opencode -p "Explain the use of context in Go" -f json
+```
+
+In this mode, OpenCode will process your prompt, print the result to standard output, and then exit. All permissions are auto-approved for the session.
+
+### Output Formats
+
+OpenCode supports the following output formats in non-interactive mode:
+
+| Format | Description                            |
+| ------ | -------------------------------------- |
+| `text` | Plain text output (default)            |
+| `json` | Output wrapped in a JSON object        |
+
+The output format is implemented as a strongly-typed `OutputFormat` in the codebase, ensuring type safety and validation when processing outputs.
+
 ## Command-line Flags
 
-| Flag      | Short | Description                   |
-| --------- | ----- | ----------------------------- |
-| `--help`  | `-h`  | Display help information      |
-| `--debug` | `-d`  | Enable debug mode             |
-| `--cwd`   | `-c`  | Set current working directory |
+| Flag              | Short | Description                                            |
+| ----------------- | ----- | ------------------------------------------------------ |
+| `--help`          | `-h`  | Display help information                               |
+| `--debug`         | `-d`  | Enable debug mode                                      |
+| `--cwd`           | `-c`  | Set current working directory                          |
+| `--prompt`        | `-p`  | Run a single prompt in non-interactive mode            |
+| `--output-format` | `-f`  | Output format for non-interactive mode (text, json)    |
 
 ## Keyboard Shortcuts
 
