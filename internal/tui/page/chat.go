@@ -5,7 +5,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/opencode-ai/opencode/internal/app"
+	"github.com/opencode-ai/opencode/internal/completions"
 	"github.com/opencode-ai/opencode/internal/message"
 	"github.com/opencode-ai/opencode/internal/session"
 	"github.com/opencode-ai/opencode/internal/tui/components/chat"
@@ -17,19 +19,26 @@ import (
 var ChatPage PageID = "chat"
 
 type chatPage struct {
-	app      *app.App
-	editor   layout.Container
-	messages layout.Container
-	layout   layout.SplitPaneLayout
-	session  session.Session
+	app               *app.App
+	editor            layout.Container
+	messages          layout.Container
+	layout            layout.SplitPaneLayout
+	session           session.Session
+	contextDialog     dialog.CompletionDialog
+	showContextDialog bool
 }
 
 type ChatKeyMap struct {
-	NewSession key.Binding
-	Cancel     key.Binding
+	ShowContextDialog key.Binding
+	NewSession        key.Binding
+	Cancel            key.Binding
 }
 
 var keyMap = ChatKeyMap{
+	ShowContextDialog: key.NewBinding(
+		key.WithKeys("@"),
+		key.WithHelp("@", "context"),
+	),
 	NewSession: key.NewBinding(
 		key.WithKeys("ctrl+n"),
 		key.WithHelp("ctrl+n", "new session"),
@@ -43,6 +52,7 @@ var keyMap = ChatKeyMap{
 func (p *chatPage) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		p.layout.Init(),
+		p.contextDialog.Init(),
 	}
 	return tea.Batch(cmds...)
 }
@@ -53,6 +63,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		cmd := p.layout.SetSize(msg.Width, msg.Height)
 		cmds = append(cmds, cmd)
+	case dialog.CompletionDialogCloseMsg:
+		p.showContextDialog = false
 	case chat.SendMsg:
 		cmd := p.sendMessage(msg.Text, msg.Attachments)
 		if cmd != nil {
@@ -78,6 +90,9 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p.session = msg
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, keyMap.ShowContextDialog):
+			p.showContextDialog = true
+			// Continue sending keys to layout->chat
 		case key.Matches(msg, keyMap.NewSession):
 			p.session = session.Session{}
 			return p, tea.Batch(
@@ -93,9 +108,16 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	if p.showContextDialog {
+		context, contextCmd := p.contextDialog.Update(msg)
+		p.contextDialog = context.(dialog.CompletionDialog)
+		cmds = append(cmds, contextCmd)
+	}
+
 	u, cmd := p.layout.Update(msg)
 	cmds = append(cmds, cmd)
 	p.layout = u.(layout.SplitPaneLayout)
+
 	return p, tea.Batch(cmds...)
 }
 
@@ -143,7 +165,25 @@ func (p *chatPage) GetSize() (int, int) {
 }
 
 func (p *chatPage) View() string {
-	return p.layout.View()
+	layoutView := p.layout.View()
+
+	if p.showContextDialog {
+		_, layoutHeight := p.layout.GetSize()
+		editorWidth, editorHeight := p.editor.GetSize()
+
+		p.contextDialog.SetWidth(editorWidth)
+		overlay := p.contextDialog.View()
+
+		layoutView = layout.PlaceOverlay(
+			0,
+			layoutHeight-editorHeight-lipgloss.Height(overlay),
+			overlay,
+			layoutView,
+			false,
+		)
+	}
+
+	return layoutView
 }
 
 func (p *chatPage) BindingKeys() []key.Binding {
@@ -154,6 +194,9 @@ func (p *chatPage) BindingKeys() []key.Binding {
 }
 
 func NewChatPage(app *app.App) tea.Model {
+	cg := completions.NewFileAndFolderContextGroup()
+	contextDialog := dialog.NewCompletionDialogCmp(cg)
+
 	messagesContainer := layout.NewContainer(
 		chat.NewMessagesCmp(app),
 		layout.WithPadding(1, 1, 0, 1),
@@ -163,9 +206,10 @@ func NewChatPage(app *app.App) tea.Model {
 		layout.WithBorder(true, false, false, false),
 	)
 	return &chatPage{
-		app:      app,
-		editor:   editorContainer,
-		messages: messagesContainer,
+		app:           app,
+		editor:        editorContainer,
+		messages:      messagesContainer,
+		contextDialog: contextDialog,
 		layout: layout.NewSplitPane(
 			layout.WithLeftPanel(messagesContainer),
 			layout.WithBottomPanel(editorContainer),
