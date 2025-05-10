@@ -48,6 +48,12 @@ yay -S opencode-bin
 paru -S opencode-bin
 ```
 
+### Using nix flakes
+
+```bash
+nix profile install 'github:opencode-ai/opencode'
+```
+
 ### Using Go
 
 ```bash
