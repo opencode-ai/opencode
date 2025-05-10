@@ -1,5 +1,7 @@
 # ⌬ OpenCode
 
+[繁體中文](README.zh-TW.md)
+
 > **⚠️ Early Development Notice:** This project is in early development and is not yet ready for production use. Features may change, break, or be incomplete. Use at your own risk.
 
 A powerful terminal-based AI assistant for developers, providing intelligent coding assistance directly in your terminal.
