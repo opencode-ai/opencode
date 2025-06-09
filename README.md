@@ -62,6 +62,48 @@ paru -S opencode-ai-bin
 go install github.com/opencode-ai/opencode@latest
 ```
 
+## Important: Local Data Storage and Privacy
+
+Opencode is designed to run locally on your machine. To provide features like conversation history and session context, Opencode stores certain data on your computer:
+
+*   **Conversation History:** All interactions, including your prompts, responses from the language model, and commands to/from tools, are saved.
+*   **File Contents:** When you use features that involve files (e.g., editing a file, referencing it in a prompt), the content of those files may be stored as part of your session data.
+
+**Storage Details:**
+
+*   This data is stored in an **unencrypted SQLite database file** named `opencode.db`.
+*   The default location for this database is typically:
+    *   `~/.opencode/opencode.db` (on macOS and Linux if `$XDG_CONFIG_HOME` is not set)
+    *   `$XDG_CONFIG_HOME/opencode/opencode.db` (on Linux if `$XDG_CONFIG_HOME` is set)
+
+**Security Considerations:**
+
+*   Because this data is stored locally and unencrypted, anyone with access to your user account on your computer could potentially access this information.
+*   We recommend following security best practices for your computer, such as:
+    *   Using a strong account password.
+    *   Enabling full-disk encryption (e.g., FileVault on macOS, BitLocker on Windows, or LUKS on Linux).
+    *   Keeping your operating system and security software up to date.
+
+**Data Deletion:**
+
+*   If you wish to remove all your conversation history and locally stored file content from Opencode, you can do so by manually deleting the `opencode.db` file from the directory specified above. Please ensure Opencode is not running when you do this.
+
+#### Automatic Context Files
+
+Please be aware that Opencode may automatically include content from certain files found in your project's root directory to provide better context to the language model. These files often include project-specific instructions or guidelines (e.g., `opencode.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursorrules`).
+
+If such files exist in your project and contain sensitive information that you do not wish to share with the configured language model, please review their content or avoid using these specific file names for sensitive data in your project root. You can see the list of default files checked in the `defaultContextPaths` variable within the application's source code (`internal/config/config.go`).
+
+### Tool Usage and Permissions
+
+Opencode leverages powerful tools to interact with your system, such as executing shell commands (`bash` tool), fetching content from URLs (`fetch` tool), and modifying files (`edit`, `write`, `patch` tools). While these tools enable complex tasks, they also require careful handling:
+
+*   **Review Permission Prompts:** When a tool needs to perform a sensitive action (like writing a file or running a command), Opencode will ask for your permission. **It is crucial to carefully review the details of each permission request before approving it.**
+    *   The language model generates the commands or parameters for these tools. Always verify that the action described in the prompt (e.g., the specific command to be run, the file to be changed, or the URL to be fetched) is exactly what you intend.
+    *   Do not blindly approve requests, especially if they seem suspicious or unexpected.
+
+*   **Auto-Approve Sessions:** Opencode has a feature to "auto-approve" all permission requests within a specific session. While this can streamline workflows, it bypasses the safety net of individual prompts. Use this feature with extreme caution and only in situations where you fully trust the sequence of operations.
+
 ## Configuration
 
 OpenCode looks for configuration in the following locations:

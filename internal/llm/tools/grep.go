@@ -16,6 +16,7 @@ import (
 
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/fileutil"
+	"github.com/opencode-ai/opencode/internal/llm/permission"
 )
 
 type GrepParams struct {
@@ -37,7 +38,9 @@ type GrepResponseMetadata struct {
 	Truncated       bool `json:"truncated"`
 }
 
-type grepTool struct{}
+type grepTool struct {
+	permissions permission.Service
+}
 
 const (
 	GrepToolName    = "grep"
@@ -79,8 +82,10 @@ TIPS:
 - Use literal_text=true when searching for exact text containing special characters like dots, parentheses, etc.`
 )
 
-func NewGrepTool() BaseTool {
-	return &grepTool{}
+func NewGrepTool(permissions permission.Service) BaseTool {
+	return &grepTool{
+		permissions: permissions,
+	}
 }
 
 func (g *grepTool) Info() ToolInfo {
@@ -140,6 +145,27 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	searchPath := params.Path
 	if searchPath == "" {
 		searchPath = config.WorkingDirectory()
+	}
+
+	sessionID, messageID := GetContextValues(ctx)
+	if sessionID == "" || messageID == "" {
+		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for this tool")
+	}
+
+	p := g.permissions.Request(
+		permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			MessageID:   messageID,
+			Path:        searchPath,
+			ToolName:    GrepToolName,
+			Action:      "search_content",
+			Description: fmt.Sprintf("Search content in path '%s' for pattern: %s (include: %s)", searchPath, params.Pattern, params.Include),
+			Params:      params,
+		},
+	)
+
+	if !p {
+		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
 	matches, truncated, err := searchFiles(searchPattern, searchPath, params.Include, 100)

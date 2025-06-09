@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/opencode-ai/opencode/internal/config"
+	"github.com/opencode-ai/opencode/internal/llm/permission"
 	"github.com/opencode-ai/opencode/internal/lsp"
 )
 
@@ -21,7 +22,8 @@ type ViewParams struct {
 }
 
 type viewTool struct {
-	lspClients map[string]*lsp.Client
+	lspClients  map[string]*lsp.Client
+	permissions permission.Service
 }
 
 type ViewResponseMetadata struct {
@@ -66,9 +68,10 @@ TIPS:
 - When viewing large files, use the offset parameter to read specific sections`
 )
 
-func NewViewTool(lspClients map[string]*lsp.Client) BaseTool {
+func NewViewTool(lspClients map[string]*lsp.Client, permissions permission.Service) BaseTool {
 	return &viewTool{
-		lspClients,
+		lspClients:  lspClients,
+		permissions: permissions,
 	}
 }
 
@@ -109,6 +112,27 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	filePath := params.FilePath
 	if !filepath.IsAbs(filePath) {
 		filePath = filepath.Join(config.WorkingDirectory(), filePath)
+	}
+
+	sessionID, messageID := GetContextValues(ctx)
+	if sessionID == "" || messageID == "" {
+		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for this tool")
+	}
+
+	p := v.permissions.Request(
+		permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			MessageID:   messageID,
+			Path:        filePath,
+			ToolName:    ViewToolName,
+			Action:      "read",
+			Description: fmt.Sprintf("Read file content: %s", filePath),
+			Params:      params,
+		},
+	)
+
+	if !p {
+		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
 	// Check if file exists

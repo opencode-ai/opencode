@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sourcegraph/sourcegraph/internal/llm/permission"
+	"github.com/sourcegraph/sourcegraph/internal/llm/internal/config"
 )
 
 type SourcegraphParams struct {
@@ -24,7 +27,8 @@ type SourcegraphResponseMetadata struct {
 }
 
 type sourcegraphTool struct {
-	client *http.Client
+	client      *http.Client
+	permissions permission.Service
 }
 
 const (
@@ -125,11 +129,12 @@ TIPS:
 - Use type:file to find relevant files`
 )
 
-func NewSourcegraphTool() BaseTool {
+func NewSourcegraphTool(permissions permission.Service) BaseTool {
 	return &sourcegraphTool{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		permissions: permissions,
 	}
 }
 
@@ -163,6 +168,29 @@ func (t *sourcegraphTool) Run(ctx context.Context, call ToolCall) (ToolResponse,
 	var params SourcegraphParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
 		return NewTextErrorResponse("Failed to parse sourcegraph parameters: " + err.Error()), nil
+	}
+
+	sessionID, messageID := GetContextValues(ctx)
+	if sessionID == "" || messageID == "" {
+		// This error handling might need adjustment if sourcegraph tool can operate without session/message IDs
+		// For now, assume they are required or find an alternative way to handle context for permissions.
+		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for this tool")
+	}
+
+	p := t.permissions.Request(
+		permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			MessageID:   messageID,
+			Path:        config.WorkingDirectory(), // Or a more relevant path if applicable
+			ToolName:    SourcegraphToolName,
+			Action:      "search",
+			Description: fmt.Sprintf("Search Sourcegraph for: %s", params.Query),
+			Params:      params, // Sending the whole params struct
+		},
+	)
+
+	if !p {
+		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
 	if params.Query == "" {
