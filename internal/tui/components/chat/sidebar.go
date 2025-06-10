@@ -15,6 +15,7 @@ import (
 	"github.com/opencode-ai/opencode/internal/session"
 	"github.com/opencode-ai/opencode/internal/tui/styles"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
+	"github.com/opencode-ai/opencode/internal/tui/events"
 )
 
 type sidebarCmp struct {
@@ -25,6 +26,7 @@ type sidebarCmp struct {
 		additions int
 		removals  int
 	}
+	hidden bool
 }
 
 func (m *sidebarCmp) Init() tea.Cmd {
@@ -58,6 +60,8 @@ func (m *sidebarCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ctx := context.Background()
 			m.loadModifiedFiles(ctx)
 		}
+	case events.ToggleSidebarMsg:
+		m.hidden = !m.hidden
 	case pubsub.Event[session.Session]:
 		if msg.Type == pubsub.UpdatedEvent {
 			if m.session.ID == msg.Payload.ID {
@@ -82,6 +86,9 @@ func (m *sidebarCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *sidebarCmp) View() string {
+	if m.hidden {
+		return ""
+	}
 	baseStyle := styles.BaseStyle()
 
 	return baseStyle.
