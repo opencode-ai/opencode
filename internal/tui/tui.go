@@ -271,6 +271,12 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s, _ := a.status.Update(msg)
 		a.status = s.(core.StatusCmp)
 
+	// Focus tracking
+	case util.FocusMsg:
+		// Forward focus messages to the current page
+		a.pages[a.currentPage], cmd = a.pages[a.currentPage].Update(msg)
+		cmds = append(cmds, cmd)
+
 	// Permission
 	case pubsub.Event[permission.PermissionRequest]:
 		a.showPermissions = true
@@ -443,6 +449,11 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
+		// Handle focus events from terminal escape sequences
+		if ok, cmd := util.ParseFocusMessage(msg); ok {
+			return a, util.CmdHandler(cmd)
+		}
+
 		// If multi-arguments dialog is open, let it handle the key press first
 		if a.showMultiArgumentsDialog {
 			args, cmd := a.multiArgumentsDialog.Update(msg)
