@@ -141,6 +141,10 @@ This is useful if you want to use a different shell than your default system she
   "providers": {
     "openai": {
       "apiKey": "your-api-key",
+      "baseURL": "https://custom-openai-endpoint.com/v1",
+      "headers": {
+        "X-Custom-Header": "value"
+      },
       "disabled": false
     },
     "anthropic": {
@@ -152,6 +156,7 @@ This is useful if you want to use a different shell than your default system she
     },
     "groq": {
       "apiKey": "your-api-key",
+      "baseURL": "https://custom-groq-proxy.com/openai/v1",
       "disabled": false
     },
     "openrouter": {
@@ -194,6 +199,49 @@ This is useful if you want to use a different shell than your default system she
   "debug": false,
   "debugLSP": false,
   "autoCompact": true
+}
+```
+
+### Provider Configuration
+
+#### Custom Base URLs
+
+You can configure custom base URLs for providers that support it (OpenAI, Gemini, Groq, OpenRouter, XAI, Local). This is useful for:
+
+- Using proxy servers
+- Corporate API gateways
+- Self-hosted compatible endpoints
+- Alternative API endpoints
+
+Example configuration:
+
+```json
+{
+  "providers": {
+    "openai": {
+      "apiKey": "your-api-key",
+      "baseURL": "https://your-openai-proxy.com/v1"
+    }
+  }
+}
+```
+
+#### Custom Headers
+
+You can also add custom headers to provider requests (currently supported for OpenAI-compatible providers and Gemini):
+
+```json
+{
+  "providers": {
+    "openai": {
+      "apiKey": "your-api-key",
+      "baseURL": "https://your-proxy.com/v1",
+      "headers": {
+        "X-Auth-Token": "additional-auth-token",
+        "X-Organization": "your-org"
+      }
+    }
+  }
 }
 ```
 
