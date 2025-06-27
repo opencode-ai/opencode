@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -233,13 +234,8 @@ func setDefaults(debug bool) {
 	viper.SetDefault("tui.theme", "opencode")
 	viper.SetDefault("autoCompact", true)
 
-	// Set default shell from environment or fallback to /bin/bash
-	shellPath := os.Getenv("SHELL")
-	if shellPath == "" {
-		shellPath = "/bin/bash"
-	}
-	viper.SetDefault("shell.path", shellPath)
-	viper.SetDefault("shell.args", []string{"-l"})
+	// Set default shell configuration based on platform and detected shell
+	setDefaultShellConfig()
 
 	if debug {
 		viper.SetDefault("debug", true)
@@ -247,6 +243,63 @@ func setDefaults(debug bool) {
 	} else {
 		viper.SetDefault("debug", false)
 		viper.SetDefault("log.level", defaultLogLevel)
+	}
+}
+
+// setDefaultShellConfig sets default shell configuration based on platform and detected shell
+func setDefaultShellConfig() {
+	if runtime.GOOS == "windows" {
+		// On Windows, set defaults based on detected shell kind
+		shellKind := detectWindowsShellKind()
+		setWindowsShellDefaults(shellKind)
+	} else {
+		// On Unix systems, use traditional shell detection
+		shellPath := os.Getenv("SHELL")
+		if shellPath == "" {
+			shellPath = "/bin/bash"
+		}
+		viper.SetDefault("shell.path", shellPath)
+		viper.SetDefault("shell.args", []string{"-l"})
+	}
+}
+
+// detectWindowsShellKind detects the appropriate shell kind for Windows
+func detectWindowsShellKind() string {
+	// Check for PowerShell Core (pwsh) first
+	if _, err := exec.LookPath("pwsh"); err == nil {
+		return "pwsh"
+	}
+
+	// Check for Windows PowerShell (powershell)
+	if _, err := exec.LookPath("powershell"); err == nil {
+		return "powershell"
+	}
+
+	// Check for Command Prompt (cmd)
+	if _, err := exec.LookPath("cmd"); err == nil {
+		return "cmd.exe"
+	}
+
+	// Fallback to cmd (should always be available on Windows)
+	return "cmd.exe"
+}
+
+// setWindowsShellDefaults sets Windows-specific shell defaults based on detected shell kind
+func setWindowsShellDefaults(shellKind string) {
+	switch shellKind {
+	case "pwsh":
+		viper.SetDefault("shell.path", "pwsh")
+		viper.SetDefault("shell.args", []string{"-NoLogo", "-NoExit", "-Command", "-"})
+	case "powershell":
+		viper.SetDefault("shell.path", "powershell")
+		viper.SetDefault("shell.args", []string{"-NoLogo", "-NoExit", "-Command", "-"})
+	case "cmd.exe":
+		viper.SetDefault("shell.path", "cmd.exe")
+		viper.SetDefault("shell.args", []string{"/Q", "/K"})
+	default:
+		// Fallback to cmd.exe
+		viper.SetDefault("shell.path", "cmd.exe")
+		viper.SetDefault("shell.args", []string{"/Q", "/K"})
 	}
 }
 

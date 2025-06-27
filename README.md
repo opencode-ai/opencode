@@ -37,6 +37,7 @@ OpenCode is a Go-based CLI application that brings AI assistance to your termina
 
 ### Using the Install Script
 
+#### Unix/Linux/macOS
 ```bash
 # Install the latest version
 curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/refs/heads/main/install | bash
@@ -44,6 +45,21 @@ curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/refs/heads/mai
 # Install a specific version
 curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/refs/heads/main/install | VERSION=0.1.0 bash
 ```
+
+#### Windows
+For Windows users, the install script supports WSL (Windows Subsystem for Linux) environments. For native Windows installation, use one of the alternative methods below or download releases directly from GitHub.
+
+**WSL Installation:**
+```bash
+# In WSL terminal
+curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/refs/heads/main/install | bash
+```
+
+**Native Windows Installation:**
+- Download the latest Windows release from [GitHub Releases](https://github.com/opencode-ai/opencode/releases)
+- Extract to a directory (e.g., `C:\opencode`)
+- Add the directory to your PATH environment variable
+- Or use the Go installation method below
 
 ### Using Homebrew (macOS and Linux)
 
@@ -116,9 +132,22 @@ You can configure OpenCode using environment variables:
 
 ### Shell Configuration
 
-OpenCode allows you to configure the shell used by the bash tool. By default, it uses the shell specified in the `SHELL` environment variable, or falls back to `/bin/bash` if not set.
+OpenCode provides cross-platform shell support with automatic detection and configuration.
 
-You can override this in your configuration file:
+#### Automatic Shell Detection
+
+**On Unix/Linux/macOS:**
+OpenCode uses the shell specified in the `SHELL` environment variable, or falls back to `/bin/bash` if not set.
+
+**On Windows:**
+OpenCode automatically detects the best available shell in this priority order:
+1. **PowerShell Core (pwsh)** - Recommended for cross-platform compatibility
+2. **Windows PowerShell (powershell)** - Traditional Windows PowerShell
+3. **Command Prompt (cmd.exe)** - Fallback option
+
+#### Manual Shell Configuration
+
+You can override the default shell detection in your configuration file:
 
 ```json
 {
@@ -129,7 +158,36 @@ You can override this in your configuration file:
 }
 ```
 
-This is useful if you want to use a different shell than your default system shell, or if you need to pass specific arguments to the shell.
+**Windows-specific examples:**
+
+```json
+{
+  "shell": {
+    "path": "pwsh",
+    "args": ["-NoLogo", "-NoExit", "-Command", "-"]
+  }
+}
+```
+
+```json
+{
+  "shell": {
+    "path": "powershell",
+    "args": ["-NoLogo", "-NoExit", "-Command", "-"]
+  }
+}
+```
+
+```json
+{
+  "shell": {
+    "path": "cmd.exe",
+    "args": ["/Q", "/K"]
+  }
+}
+```
+
+This configuration is useful if you want to use a different shell than the automatically detected one, or if you need to pass specific arguments to the shell.
 
 ### Configuration File Structure
 
@@ -418,6 +476,88 @@ OpenCode's AI assistant has access to various tools to help with coding tasks:
 | `fetch`       | Fetch data from URLs                   | `url` (required), `format` (required), `timeout` (optional)                               |
 | `sourcegraph` | Search code across public repositories | `query` (required), `count` (optional), `context_window` (optional), `timeout` (optional) |
 | `agent`       | Run sub-tasks with the AI agent        | `prompt` (required)                                                                       |
+
+## Windows Support
+
+OpenCode provides comprehensive Windows support with platform-specific optimizations.
+
+### Supported Windows Shells
+
+OpenCode supports three Windows shell environments:
+
+| Shell | Executable | Description | Priority |
+|-------|------------|-------------|---------|
+| PowerShell Core | `pwsh` | Modern cross-platform PowerShell (recommended) | 1st |
+| Windows PowerShell | `powershell` | Traditional Windows PowerShell 5.x | 2nd |
+| Command Prompt | `cmd.exe` | Traditional Windows command line | 3rd |
+
+### Shell Detection Behavior
+
+OpenCode automatically detects the best available shell on Windows startup:
+
+1. **Detection Process**: Checks for shell availability using `exec.LookPath()`
+2. **Priority Order**: Prefers `pwsh` > `powershell` > `cmd.exe`
+3. **Fallback**: Always falls back to `cmd.exe` (guaranteed to be available)
+4. **Configuration Override**: Users can override detection via config file
+
+### Windows-Specific Behavioral Differences
+
+#### Command Execution
+- **Shell Wrapping**: Commands are wrapped differently based on detected shell type
+- **Quoting Rules**: Each shell has specific quoting and escaping requirements:
+  - **CMD**: Uses double quotes and `%ERRORLEVEL%` for exit codes
+  - **PowerShell**: Uses single/double quotes and `$LASTEXITCODE` for exit codes
+  - **Error Handling**: PowerShell uses try/catch blocks, CMD uses conditional execution
+
+#### Process Management
+- **Child Process Termination**: Uses `taskkill /F /T` for comprehensive process tree termination
+- **Graceful Shutdown**: Sends `CTRL_BREAK_EVENT` before forceful termination
+- **Timeout Handling**: Platform-specific timeout mechanisms with proper cleanup
+
+#### File Operations
+- **Path Handling**: Automatic handling of Windows path separators and drive letters
+- **Temporary Files**: Uses `os.CreateTemp()` for cross-platform temporary file creation
+- **Permissions**: Respects Windows file system permissions and access controls
+
+#### Security Considerations
+- **Banned Commands**: Windows-specific dangerous commands are restricted:
+  - `start`, `shutdown`, `restart`, `taskkill`
+  - `reg`, `wmic`, `net`, `sc`, `bcdedit`
+  - `format`, `fdisk`, `diskpart`, `netsh`
+- **Safe Commands**: Windows equivalents of safe Unix commands are allowed:
+  - `dir` (equivalent to `ls`), `type` (equivalent to `cat`)
+  - `where` (equivalent to `which`), `systeminfo`, `tasklist`
+
+### Configuration Paths
+
+On Windows, OpenCode looks for configuration files in:
+
+1. `%USERPROFILE%\.opencode.json`
+2. `%XDG_CONFIG_HOME%\opencode\.opencode.json` (if XDG_CONFIG_HOME is set)
+3. `%USERPROFILE%\.config\opencode\.opencode.json`
+4. `.opencode.json` (current directory)
+
+### Environment Variables
+
+Windows-specific environment variables:
+
+| Variable | Purpose | Example |
+|----------|---------|----------|
+| `SHELL` | Override default shell detection | `pwsh`, `powershell`, `cmd.exe` |
+| `USERPROFILE` | User home directory | `C:\Users\username` |
+| `XDG_CONFIG_HOME` | XDG config directory (optional) | `C:\Users\username\AppData\Local` |
+
+### Testing
+
+Comprehensive Windows-specific tests are included:
+
+- **Shell Detection Tests**: Verify correct shell kind detection
+- **Command Execution Tests**: Test stdout/stderr capture across all shell types
+- **Timeout Tests**: Validate timeout behavior with Windows-specific commands
+- **Process Management Tests**: Test child process termination and cleanup
+- **Working Directory Tests**: Verify directory changes work correctly
+
+See `internal/llm/tools/shell/WINDOWS_TESTS.md` for detailed test documentation.
 
 ## Architecture
 
