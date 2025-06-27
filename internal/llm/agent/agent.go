@@ -704,55 +704,57 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 }
 
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
-	cfg := config.Get()
-	agentConfig, ok := cfg.Agents[agentName]
-	if !ok {
-		return nil, fmt.Errorf("agent %s not found", agentName)
-	}
-	model, ok := models.SupportedModels[agentConfig.Model]
-	if !ok {
-		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
-	}
+    cfg := config.Get()
+    agentConfig, ok := cfg.Agents[agentName]
+    if !ok {
+        return nil, fmt.Errorf("agent %s not found", agentName)
+    }
+    model, ok := models.SupportedModels[agentConfig.Model]
+    if !ok {
+        return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
+    }
+    providerCfg, ok := cfg.Providers[model.Provider]
+    if !ok {
+        return nil, fmt.Errorf("provider %s not supported", model.Provider)
+    }
+    if providerCfg.Disabled {
+        return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
+    }
+    maxTokens := model.DefaultMaxTokens
+    if agentConfig.MaxTokens > 0 {
+        maxTokens = agentConfig.MaxTokens
+    }
+    opts := []provider.ProviderClientOption{
+        provider.WithAPIKey(providerCfg.APIKey),
+        provider.WithModel(model),
+        provider.WithSystemMessage(prompt.GetAgentPrompt(agentName, model.Provider)),
+        provider.WithMaxTokens(maxTokens),
+    }
 
-	providerCfg, ok := cfg.Providers[model.Provider]
-	if !ok {
-		return nil, fmt.Errorf("provider %s not supported", model.Provider)
-	}
-	if providerCfg.Disabled {
-		return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
-	}
-	maxTokens := model.DefaultMaxTokens
-	if agentConfig.MaxTokens > 0 {
-		maxTokens = agentConfig.MaxTokens
-	}
-	opts := []provider.ProviderClientOption{
-		provider.WithAPIKey(providerCfg.APIKey),
-		provider.WithModel(model),
-		provider.WithSystemMessage(prompt.GetAgentPrompt(agentName, model.Provider)),
-		provider.WithMaxTokens(maxTokens),
-	}
-	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
-		opts = append(
-			opts,
-			provider.WithOpenAIOptions(
-				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
-			),
-		)
-	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
-		opts = append(
-			opts,
-			provider.WithAnthropicOptions(
-				provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
-			),
-		)
-	}
-	agentProvider, err := provider.NewProvider(
-		model.Provider,
-		opts...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("could not create provider: %v", err)
-	}
+    // Handle OpenAI and OpenAI-compatible providers
+    if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
+        opts = append(
+            opts,
+            provider.WithOpenAIOptions(
+                provider.WithReasoningEffort(agentConfig.ReasoningEffort),
+            ),
+        )
+    } else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
+        opts = append(
+            opts,
+            provider.WithAnthropicOptions(
+                provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
+            ),
+        )
+    }
+	
+    agentProvider, err := provider.NewProvider(
+        model.Provider,
+        opts...,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("could not create provider: %v", err)
+    }
 
-	return agentProvider, nil
+    return agentProvider, nil
 }

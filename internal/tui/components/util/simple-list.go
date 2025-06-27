@@ -4,7 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
+	"github.com/opencode-ai/opencode/internal/tui/bindings"
 	"github.com/opencode-ai/opencode/internal/tui/styles"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
 )
@@ -15,7 +15,7 @@ type SimpleListItem interface {
 
 type SimpleList[T SimpleListItem] interface {
 	tea.Model
-	layout.Bindings
+	bindings.Bindings
 	SetMaxWidth(maxWidth int)
 	GetSelectedItem() (item T, idx int)
 	SetItems(items []T)
@@ -84,7 +84,7 @@ func (c *simpleListCmp[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (c *simpleListCmp[T]) BindingKeys() []key.Binding {
-	return layout.KeyMapToSlice(simpleListKeys)
+	return bindings.KeyMapToSlice(simpleListKeys)
 }
 
 func (c *simpleListCmp[T]) GetSelectedItem() (T, int) {

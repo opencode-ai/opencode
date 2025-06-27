@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"fmt"
 	"sync"
 	"time"
 
@@ -21,8 +21,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	// These are populated by cobra during flag parsing
+	debug bool
+	cwd string
+	prompt string
+	alwaysAllowPermissions bool
+)
 var rootCmd = &cobra.Command{
-	Use:   "opencode",
+	Use: "opencode",
 	Short: "Terminal-based AI assistant for software development",
 	Long: `OpenCode is a powerful terminal-based AI assistant that helps with software development tasks.
 It provides an interactive chat interface with AI capabilities, code analysis, and LSP integration
@@ -46,6 +53,24 @@ to assist developers in writing, debugging, and understanding code directly from
   # Run a single non-interactive prompt with JSON output format
   opencode -p "Explain the use of context in Go" -f json
   `,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Ensure CWD is determined correctly before loading config
+		if cwd == "" {
+			c, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current working directory: %v", err)
+			}
+			cwd = c
+		}
+		_, err := config.Load(cwd, debug)
+		if err != nil {
+			return fmt.Errorf("failed to load initial configuration: %w", err)
+		}
+		if cmd.Flags().Changed("always-allow-permissions") {
+			config.Get().AlwaysAllowPermissions = alwaysAllowPermissions
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If the help flag is set, show the help message
 		if cmd.Flag("help").Changed {
@@ -58,9 +83,11 @@ to assist developers in writing, debugging, and understanding code directly from
 		}
 
 		// Load the config
-		debug, _ := cmd.Flags().GetBool("debug")
-		cwd, _ := cmd.Flags().GetString("cwd")
-		prompt, _ := cmd.Flags().GetString("prompt")
+		// Config is already loaded by PersistentPreRunE. We can get it directly.
+		cfg := config.Get()
+		if cfg == nil { // Should not happen if PersistentPreRunE ran successfully
+			return fmt.Errorf("configuration not loaded")
+		}
 		outputFormat, _ := cmd.Flags().GetString("output-format")
 		quiet, _ := cmd.Flags().GetBool("quiet")
 
@@ -69,22 +96,12 @@ to assist developers in writing, debugging, and understanding code directly from
 			return fmt.Errorf("invalid format option: %s\n%s", outputFormat, format.GetHelpText())
 		}
 
-		if cwd != "" {
-			err := os.Chdir(cwd)
+		// CWD logic is now handled in PersistentPreRunE or by direct use of cwd
+		if cwd != cfg.WorkingDir { // Ensure current directory matches config if changed by Chdir
+			err := os.Chdir(cfg.WorkingDir)
 			if err != nil {
-				return fmt.Errorf("failed to change directory: %v", err)
+				return fmt.Errorf("failed to change directory to config working dir: %v", err)
 			}
-		}
-		if cwd == "" {
-			c, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to get current working directory: %v", err)
-			}
-			cwd = c
-		}
-		_, err := config.Load(cwd, debug)
-		if err != nil {
-			return err
 		}
 
 		// Connect DB, this will also run migrations
@@ -291,9 +308,10 @@ func Execute() {
 func init() {
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
 	rootCmd.Flags().BoolP("version", "v", false, "Version")
-	rootCmd.Flags().BoolP("debug", "d", false, "Debug")
-	rootCmd.Flags().StringP("cwd", "c", "", "Current working directory")
-	rootCmd.Flags().StringP("prompt", "p", "", "Prompt to run in non-interactive mode")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Debug")
+	rootCmd.PersistentFlags().StringVarP(&cwd, "cwd", "c", "", "Current working directory")
+	rootCmd.PersistentFlags().StringVarP(&prompt, "prompt", "p", "", "Prompt to run in non-interactive mode")
+	rootCmd.PersistentFlags().BoolVarP(&alwaysAllowPermissions, "always-allow-permissions", "A", false, "Globally allow all permissions without prompting for the current and future sessions")
 
 	// Add format flag with validation logic
 	rootCmd.Flags().StringP("output-format", "f", format.Text.String(),

@@ -84,16 +84,17 @@ type ShellConfig struct {
 type Config struct {
 	Data         Data                              `json:"data"`
 	WorkingDir   string                            `json:"wd,omitempty"`
-	MCPServers   map[string]MCPServer              `json:"mcpServers,omitempty"`
+	MCPServers map[string]MCPServer `json:"mcpServers,omitempty"`
 	Providers    map[models.ModelProvider]Provider `json:"providers,omitempty"`
 	LSP          map[string]LSPConfig              `json:"lsp,omitempty"`
 	Agents       map[AgentName]Agent               `json:"agents,omitempty"`
 	Debug        bool                              `json:"debug,omitempty"`
 	DebugLSP     bool                              `json:"debugLSP,omitempty"`
 	ContextPaths []string                          `json:"contextPaths,omitempty"`
-	TUI          TUIConfig                         `json:"tui"`
-	Shell        ShellConfig                       `json:"shell,omitempty"`
-	AutoCompact  bool                              `json:"autoCompact,omitempty"`
+	TUI TUIConfig `json:"tui"`
+	Shell ShellConfig `json:"shell,omitempty"`
+	AutoCompact           bool `json:"autoCompact,omitempty"`
+	AlwaysAllowPermissions bool `json:"alwaysAllowPermissions,omitempty"` // New field
 }
 
 // Application constants
@@ -230,8 +231,9 @@ func configureViper() {
 func setDefaults(debug bool) {
 	viper.SetDefault("data.directory", defaultDataDirectory)
 	viper.SetDefault("contextPaths", defaultContextPaths)
-	viper.SetDefault("tui.theme", "opencode")
+	viper.SetDefault("tui.theme", "opencode") 
 	viper.SetDefault("autoCompact", true)
+	viper.SetDefault("alwaysAllowPermissions", false) // New default
 
 	// Set default shell from environment or fallback to /bin/bash
 	shellPath := os.Getenv("SHELL")
@@ -667,6 +669,44 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 	return ""
 }
 
+
+// GetOpenAIBaseURL gets the base URL override for OpenAI-compatible providers
+func GetOpenAIBaseURL() string {
+    return os.Getenv("OPENAI_BASE_URL")
+}
+
+// GetOpenAIModelOverride gets the model name override for OpenAI-compatible providers
+func GetOpenAIModelOverride() string {
+    return os.Getenv("OPENAI_MODEL_OVERRIDE")
+}
+
+// GetOpenAIReasoningEffort gets the reasoning effort level
+func GetOpenAIReasoningEffort() string {
+    effort := os.Getenv("OPENAI_REASONING_EFFORT")
+    if effort == "" {
+        return "medium" // default
+    }
+    return effort
+}
+
+// GetOpenAIExtraHeaders parses extra headers from environment
+func GetOpenAIExtraHeaders() map[string]string {
+    headersStr := os.Getenv("OPENAI_EXTRA_HEADERS")
+    if headersStr == "" {
+        return nil
+    }
+
+    headers := make(map[string]string)
+    pairs := strings.Split(headersStr, ",")
+    for _, pair := range pairs {
+        kv := strings.SplitN(strings.TrimSpace(pair), "=", 2)
+        if len(kv) == 2 {
+            headers[kv[0]] = kv[1]
+        }
+    }
+    return headers
+}
+
 // setDefaultModelForAgent sets a default model for an agent based on available providers
 func setDefaultModelForAgent(agent AgentName) bool {
 	if hasCopilotCredentials() {
@@ -924,8 +964,23 @@ func UpdateTheme(themeName string) error {
 	cfg.TUI.Theme = themeName
 
 	// Update the file config
-	return updateCfgFile(func(config *Config) {
-		config.TUI.Theme = themeName
+	return updateCfgFile(func(userCfg *Config) {
+		userCfg.TUI.Theme = themeName
+	})
+}
+
+// UpdateAlwaysAllowPermissions updates the alwaysAllowPermissions setting in the configuration and writes it to the config file.
+func UpdateAlwaysAllowPermissions(value bool) error {
+	if cfg == nil {
+		return fmt.Errorf("config not loaded")
+	}
+
+	// Update the in-memory config
+	cfg.AlwaysAllowPermissions = value
+
+	// Update the file config
+	return updateCfgFile(func(userCfg *Config) { // Match existing pattern in updateCfgFile
+		userCfg.AlwaysAllowPermissions = value
 	})
 }
 
