@@ -186,6 +186,17 @@ func generateSchema() map[string]any {
 					"description": "Whether the provider is disabled",
 					"default":     false,
 				},
+				"baseURL": map[string]any{
+					"type":        "string",
+					"description": "Base URL for the provider instead of default one",
+				},
+				"headers": map[string]any{
+					"type":        "object",
+					"description": "Extra headers to attach to request",
+					"additionalProperties": map[string]any{
+						"type": "string",
+					},
+				},
 			},
 		},
 	}

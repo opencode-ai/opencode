@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/auth"
 	"github.com/google/uuid"
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/tools"
@@ -30,6 +31,14 @@ type geminiClient struct {
 }
 
 type GeminiClient ProviderClient
+
+type tokenProvider struct {
+	value string
+}
+
+func (p *tokenProvider) Token(context.Context) (*auth.Token, error) {
+	return &auth.Token{Value: p.value}, nil
+}
 
 func newGeminiClient(opts providerClientOptions) GeminiClient {
 	geminiOpts := geminiOptions{}
@@ -183,6 +192,11 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
 		},
 	}
+	if len(g.providerOptions.headers) != 0 {
+		config.HTTPOptions = &genai.HTTPOptions{
+			Headers: *g.providerOptions.asHeader(),
+		}
+	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
 	}
@@ -281,6 +295,9 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 
 	go func() {
 		defer close(eventChan)
+		defer logging.RecoverPanic("gemini-client", func() {
+			logging.ErrorPersist("gemini client has failed")
+		})
 
 		for {
 			attempts++

@@ -269,6 +269,8 @@ OpenCode supports a variety of AI models from different providers:
 
 - Gemini 2.5
 - Gemini 2.5 Flash
+- Anthropic Sonnet 4
+- Anthropic Opus 4
 
 ## Usage
 
@@ -335,6 +337,7 @@ The output format is implemented as a strongly-typed `OutputFormat` in the codeb
 | `?`      | Toggle help dialog (when not in editing mode)           |
 | `Ctrl+L` | View logs                                               |
 | `Ctrl+A` | Switch session                                          |
+| `Ctrl+P` | Prune session                                           | 
 | `Ctrl+K` | Command dialog                                          |
 | `Ctrl+O` | Toggle model selection dialog                           |
 | `Esc`    | Close current overlay/dialog or return to previous mode |
@@ -626,11 +629,30 @@ This is useful for developers who want to experiment with custom models.
 
 ### Configuring a self-hosted provider
 
-You can use a self-hosted model by setting the `LOCAL_ENDPOINT` environment variable.
-This will cause OpenCode to load and use the models from the specified endpoint.
+You can use a self-hosted model by setting the `LOCAL_ENDPOINT` and `LOCAL_ENDPOINT_API_KEY` environment variable.
+This will cause OpenCode to load and use the models from the specified endpoint. When it loads model it tries to inherit settings
+from predefined ones if possible.
 
 ```bash
 LOCAL_ENDPOINT=http://localhost:1235/v1
+LOCAL_ENDPOINT_API_KEY=secret
+```
+
+### Using LiteLLM Proxy
+It is possible to use LiteLLM as a passthrough proxy by providing `baseURL` and auth header to provider configuration:
+```json
+{
+  "providers": {
+    "vertexai": {
+      "apiKey": "litellm-api-key",
+      "disabled": false,
+      "baseURL": "https://localhost/vertex_ai"
+      "headers": {
+        "x-litellm-api-key": "litellm-api-key"
+      }
+    }
+  }
+}
 ```
 
 ### Configuring a self-hosted model
