@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 
 type geminiOptions struct {
 	disableCache bool
+	baseURL      string
+	headers      map[string]string
 }
 
 type GeminiOption func(*geminiOptions)
@@ -37,7 +40,30 @@ func newGeminiClient(opts providerClientOptions) GeminiClient {
 		o(&geminiOpts)
 	}
 
-	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: opts.apiKey, Backend: genai.BackendGeminiAPI})
+	clientConfig := &genai.ClientConfig{
+		APIKey:  opts.apiKey,
+		Backend: genai.BackendGeminiAPI,
+	}
+	
+	// Apply HTTP options if custom base URL or headers are provided
+	if geminiOpts.baseURL != "" || len(geminiOpts.headers) > 0 {
+		httpOptions := genai.HTTPOptions{}
+		
+		if geminiOpts.baseURL != "" {
+			httpOptions.BaseURL = geminiOpts.baseURL
+		}
+		
+		if len(geminiOpts.headers) > 0 {
+			httpOptions.Headers = make(http.Header)
+			for key, value := range geminiOpts.headers {
+				httpOptions.Headers.Set(key, value)
+			}
+		}
+		
+		clientConfig.HTTPOptions = httpOptions
+	}
+
+	client, err := genai.NewClient(context.Background(), clientConfig)
 	if err != nil {
 		logging.Error("Failed to create Gemini client", "error", err)
 		return nil
@@ -460,6 +486,18 @@ func (g *geminiClient) usage(resp *genai.GenerateContentResponse) TokenUsage {
 func WithGeminiDisableCache() GeminiOption {
 	return func(options *geminiOptions) {
 		options.disableCache = true
+	}
+}
+
+func WithGeminiBaseURL(baseURL string) GeminiOption {
+	return func(options *geminiOptions) {
+		options.baseURL = baseURL
+	}
+}
+
+func WithGeminiExtraHeaders(headers map[string]string) GeminiOption {
+	return func(options *geminiOptions) {
+		options.headers = headers
 	}
 }
 

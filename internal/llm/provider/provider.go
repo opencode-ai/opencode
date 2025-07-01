@@ -115,9 +115,22 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newBedrockClient(clientOptions),
 		}, nil
 	case models.ProviderGROQ:
-		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL("https://api.groq.com/openai/v1"),
-		)
+		// Only set default baseURL if not already provided in options
+		hasBaseURL := false
+		for _, opt := range clientOptions.openaiOptions {
+			// Check if baseURL was already set via options
+			testOpts := &openaiOptions{}
+			opt(testOpts)
+			if testOpts.baseURL != "" {
+				hasBaseURL = true
+				break
+			}
+		}
+		if !hasBaseURL {
+			clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+				WithOpenAIBaseURL("https://api.groq.com/openai/v1"),
+			)
+		}
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
@@ -133,8 +146,23 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newVertexAIClient(clientOptions),
 		}, nil
 	case models.ProviderOpenRouter:
+		// Check if baseURL was already set
+		hasBaseURL := false
+		for _, opt := range clientOptions.openaiOptions {
+			testOpts := &openaiOptions{}
+			opt(testOpts)
+			if testOpts.baseURL != "" {
+				hasBaseURL = true
+				break
+			}
+		}
+		if !hasBaseURL {
+			clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+				WithOpenAIBaseURL("https://openrouter.ai/api/v1"),
+			)
+		}
+		// Always add default headers for OpenRouter
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL("https://openrouter.ai/api/v1"),
 			WithOpenAIExtraHeaders(map[string]string{
 				"HTTP-Referer": "opencode.ai",
 				"X-Title":      "OpenCode",
@@ -145,17 +173,45 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderXAI:
-		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL("https://api.x.ai/v1"),
-		)
+		// Check if baseURL was already set
+		hasBaseURL := false
+		for _, opt := range clientOptions.openaiOptions {
+			testOpts := &openaiOptions{}
+			opt(testOpts)
+			if testOpts.baseURL != "" {
+				hasBaseURL = true
+				break
+			}
+		}
+		if !hasBaseURL {
+			clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+				WithOpenAIBaseURL("https://api.x.ai/v1"),
+			)
+		}
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderLocal:
-		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL(os.Getenv("LOCAL_ENDPOINT")),
-		)
+		// Check if baseURL was already set via options
+		hasBaseURL := false
+		for _, opt := range clientOptions.openaiOptions {
+			testOpts := &openaiOptions{}
+			opt(testOpts)
+			if testOpts.baseURL != "" {
+				hasBaseURL = true
+				break
+			}
+		}
+		// If no baseURL in options, use LOCAL_ENDPOINT env var
+		if !hasBaseURL {
+			localEndpoint := os.Getenv("LOCAL_ENDPOINT")
+			if localEndpoint != "" {
+				clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+					WithOpenAIBaseURL(localEndpoint),
+				)
+			}
+		}
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),

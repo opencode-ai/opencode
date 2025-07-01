@@ -3,7 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +48,12 @@ to assist developers in writing, debugging, and understanding code directly from
 
   # Run a single non-interactive prompt with JSON output format
   opencode -p "Explain the use of context in Go" -f json
+
+  # Run prompt from a markdown file
+  opencode --prompt-file /path/to/prompt.md
+
+  # Use custom configuration file
+  opencode --config /path/to/custom-config.json
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If the help flag is set, show the help message
@@ -61,12 +70,76 @@ to assist developers in writing, debugging, and understanding code directly from
 		debug, _ := cmd.Flags().GetBool("debug")
 		cwd, _ := cmd.Flags().GetString("cwd")
 		prompt, _ := cmd.Flags().GetString("prompt")
+		promptFile, _ := cmd.Flags().GetString("prompt-file")
+		configFile, _ := cmd.Flags().GetString("config")
 		outputFormat, _ := cmd.Flags().GetString("output-format")
 		quiet, _ := cmd.Flags().GetBool("quiet")
+
+		// Validate that only one prompt option is provided
+		if prompt != "" && promptFile != "" {
+			return fmt.Errorf("cannot use both --prompt and --prompt-file options at the same time")
+		}
+
+		// Validate config file if specified
+		if configFile != "" {
+			// Validate file extension
+			if !strings.HasSuffix(strings.ToLower(configFile), ".json") {
+				return fmt.Errorf("config file must have .json extension")
+			}
+
+			// Check if file exists
+			if _, err := os.Stat(configFile); os.IsNotExist(err) {
+				return fmt.Errorf("config file does not exist: %s", configFile)
+			}
+
+			// Convert relative path to absolute
+			absPath, err := filepath.Abs(configFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve absolute path for config file: %v", err)
+			}
+			configFile = absPath
+		}
 
 		// Validate format option
 		if !format.IsValid(outputFormat) {
 			return fmt.Errorf("invalid format option: %s\n%s", outputFormat, format.GetHelpText())
+		}
+
+		// Load prompt from file if specified
+		if promptFile != "" {
+			// Validate file extension
+			if !strings.HasSuffix(strings.ToLower(promptFile), ".md") {
+				return fmt.Errorf("prompt file must have .md extension")
+			}
+
+			// Check if file exists
+			if _, err := os.Stat(promptFile); os.IsNotExist(err) {
+				return fmt.Errorf("prompt file does not exist: %s", promptFile)
+			}
+
+			// Convert relative path to absolute
+			absPath, err := filepath.Abs(promptFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve absolute path for prompt file: %v", err)
+			}
+
+			// Read file content
+			file, err := os.Open(absPath)
+			if err != nil {
+				return fmt.Errorf("failed to open prompt file: %v", err)
+			}
+			defer file.Close()
+
+			content, err := io.ReadAll(file)
+			if err != nil {
+				return fmt.Errorf("failed to read prompt file: %v", err)
+			}
+
+			if len(content) == 0 {
+				return fmt.Errorf("prompt file is empty")
+			}
+
+			prompt = string(content)
 		}
 
 		if cwd != "" {
@@ -82,7 +155,7 @@ to assist developers in writing, debugging, and understanding code directly from
 			}
 			cwd = c
 		}
-		_, err := config.Load(cwd, debug)
+		_, err := config.Load(cwd, debug, configFile)
 		if err != nil {
 			return err
 		}
@@ -294,6 +367,8 @@ func init() {
 	rootCmd.Flags().BoolP("debug", "d", false, "Debug")
 	rootCmd.Flags().StringP("cwd", "c", "", "Current working directory")
 	rootCmd.Flags().StringP("prompt", "p", "", "Prompt to run in non-interactive mode")
+	rootCmd.Flags().String("prompt-file", "", "Markdown file containing prompt to run in non-interactive mode")
+	rootCmd.Flags().String("config", "", "Path to custom configuration file (.json)")
 
 	// Add format flag with validation logic
 	rootCmd.Flags().StringP("output-format", "f", format.Text.String(),
