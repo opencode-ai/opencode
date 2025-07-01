@@ -42,11 +42,52 @@ var bannedCommands = []string{
 	"alias", "curl", "curlie", "wget", "axel", "aria2c",
 	"nc", "telnet", "lynx", "w3m", "links", "httpie", "xh",
 	"http-prompt", "chrome", "firefox", "safari",
+	// Windows equivalents and dangerous commands
+	"start",       // Windows equivalent to opening applications
+	"powershell",  // Direct PowerShell execution (prefer using configured shell)
+	"pwsh",        // PowerShell Core
+	"cmd",         // Command Prompt (prefer using configured shell)
+	"wmic",        // Windows Management Instrumentation
+	"reg",         // Registry editor
+	"net",         // Network commands
+	"sc",          // Service Control Manager
+	"shutdown",    // System shutdown
+	"restart",     // System restart
+	"taskkill",    // Force kill processes
+	"format",      // Format drives
+	"fdisk",       // Disk partitioning
+	"diskpart",    // Disk partitioning utility
+	"bcdedit",     // Boot configuration
+	"netsh",       // Network shell
 }
 
 var safeReadOnlyCommands = []string{
 	"ls", "echo", "pwd", "date", "cal", "uptime", "whoami", "id", "groups", "env", "printenv", "set", "unset", "which", "type", "whereis",
 	"whatis", "uname", "hostname", "df", "du", "free", "top", "ps", "kill", "killall", "nice", "nohup", "time", "timeout",
+
+	// Windows equivalents
+	"dir",        // Windows equivalent to ls
+	"type",       // Windows equivalent to cat (already included above)
+	"more",       // Windows pager equivalent
+	"ver",        // Windows equivalent to uname -a
+	"systeminfo", // Windows system information
+	"tasklist",   // Windows equivalent to ps
+	"where",      // Windows equivalent to which
+	"cd",         // Change directory (safe read-only when used with no args to show current dir)
+	"chdir",      // Windows alternative to cd
+	"path",       // Windows PATH environment variable display
+	"set",        // Already included above - Windows environment variable display
+	"vol",        // Display volume label and serial number
+	"help",       // Display help information
+	"title",      // Display or set window title (read-only usage)
+	"prompt",     // Display current command prompt
+	"driverquery", // Display installed device drivers
+	"ipconfig",   // Display IP configuration (with /all flag for detailed info)
+	"netstat",    // Display network connections
+	"route",      // Display routing table (when used with print)
+	"arp",        // Display ARP table
+	"whoami",     // Already included above - Windows equivalent
+	"getmac",     // Display MAC addresses
 
 	"git status", "git log", "git diff", "git show", "git branch", "git tag", "git remote", "git ls-files", "git ls-remote",
 	"git rev-parse", "git config --get", "git config --list", "git describe", "git blame", "git grep", "git shortlog",
@@ -56,17 +97,18 @@ var safeReadOnlyCommands = []string{
 
 func bashDescription() string {
 	bannedCommandsStr := strings.Join(bannedCommands, ", ")
-	return fmt.Sprintf(`Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+	return fmt.Sprintf(`Executes a given bash/shell command in a persistent shell session with optional timeout, ensuring proper handling and security measures. Supports both Unix/Linux and Windows commands.
 
 Before executing the command, please follow these steps:
 
 1. Directory Verification:
  - If the command will create new directories or files, first use the LS tool to verify the parent directory exists and is the correct location
- - For example, before running "mkdir foo/bar", first use LS to check that "foo" exists and is the intended parent directory
+ - For example, before running "mkdir foo/bar" (Unix) or "md foo\bar" (Windows), first use LS to check that "foo" exists and is the intended parent directory
 
 2. Security Check:
  - For security and to limit the threat of a prompt injection attack, some commands are limited or banned. If you use a disallowed command, you will receive an error message explaining the restriction. Explain the error to the User.
  - Verify that the command is not one of the banned commands: %s.
+ - Windows and Unix command aliases are treated equivalently (e.g., 'dir' = 'ls', 'type' = 'cat')
 
 3. Command Execution:
  - After ensuring proper quoting, execute the command.
@@ -83,7 +125,7 @@ Before executing the command, please follow these steps:
 Usage notes:
 - The command argument is required.
 - You can specify an optional timeout in milliseconds (up to 600000ms / 10 minutes). If not specified, commands will timeout after 30 minutes.
-- VERY IMPORTANT: You MUST avoid using search commands like 'find' and 'grep'. Instead use Grep, Glob, or Agent tools to search. You MUST avoid read tools like 'cat', 'head', 'tail', and 'ls', and use FileRead and LS tools to read files.
+- VERY IMPORTANT: You MUST avoid using search commands like 'find' and 'grep' (Unix) or 'findstr' and 'dir /s' (Windows). Instead use Grep, Glob, or Agent tools to search. You MUST avoid read tools like 'cat', 'head', 'tail', 'ls' (Unix) or 'type', 'more', 'dir' (Windows), and use FileRead and LS tools to read files.
 - When issuing multiple commands, use the ';' or '&&' operator to separate them. DO NOT use newlines (newlines are ok in quoted strings).
 - IMPORTANT: All commands share the same shell session. Shell state (environment variables, virtual environments, current directory, etc.) persist between commands. For example, if you set an environment variable as part of a command, the environment variable will persist for subsequent commands.
 - Try to maintain your current working directory throughout the session by using absolute paths and avoiding usage of 'cd'. You may use 'cd' if the User explicitly requests it.
@@ -343,5 +385,7 @@ func countLines(s string) int {
 	if s == "" {
 		return 0
 	}
-	return len(strings.Split(s, "\n"))
+	// Normalize line endings to handle both Unix (\n) and Windows (\r\n) line endings
+	normalized := strings.ReplaceAll(s, "\r\n", "\n")
+	return len(strings.Split(normalized, "\n"))
 }
