@@ -36,6 +36,8 @@ Thumbs.db
 # Binary output directory
 /bin/
 /dist/
+.direnv
+result
 
 # Local environment variables
 .env
