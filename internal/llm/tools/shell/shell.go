@@ -51,8 +51,21 @@ func GetPersistentShell(workingDir string) *PersistentShell {
 
 	if shellInstance == nil {
 		shellInstance = newPersistentShell(workingDir)
+		if shellInstance == nil {
+			// If we still can't create a shell, return a disabled shell instance
+			return &PersistentShell{
+				isAlive: false,
+				cwd:     workingDir,
+			}
+		}
 	} else if !shellInstance.isAlive {
-		shellInstance = newPersistentShell(shellInstance.cwd)
+		newShell := newPersistentShell(shellInstance.cwd)
+		if newShell != nil {
+			shellInstance = newShell
+		} else {
+			// If we can't recreate the shell, mark it as not alive
+			shellInstance.isAlive = false
+		}
 	}
 
 	return shellInstance
@@ -61,23 +74,23 @@ func GetPersistentShell(workingDir string) *PersistentShell {
 func newPersistentShell(cwd string) *PersistentShell {
 	// Get shell configuration from config
 	cfg := config.Get()
-	
+
 	// Default to environment variable if config is not set or nil
 	var shellPath string
 	var shellArgs []string
-	
+
 	if cfg != nil {
 		shellPath = cfg.Shell.Path
 		shellArgs = cfg.Shell.Args
 	}
-	
+
 	if shellPath == "" {
 		shellPath = os.Getenv("SHELL")
 		if shellPath == "" {
 			shellPath = "/bin/bash"
 		}
 	}
-	
+
 	// Default shell args
 	if len(shellArgs) == 0 {
 		shellArgs = []string{"-l"}
@@ -88,6 +101,7 @@ func newPersistentShell(cwd string) *PersistentShell {
 
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create stdin pipe for shell: %v\n", err)
 		return nil
 	}
 
@@ -95,6 +109,7 @@ func newPersistentShell(cwd string) *PersistentShell {
 
 	err = cmd.Start()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to start shell process: %v\n", err)
 		return nil
 	}
 
@@ -173,6 +188,14 @@ echo $EXEC_EXIT_CODE > %s
 		shellQuote(cwdFile),
 		shellQuote(statusFile),
 	)
+
+	if s.stdin == nil {
+		return commandResult{
+			stderr:   "Shell stdin is not available",
+			exitCode: 1,
+			err:      errors.New("shell stdin is not available"),
+		}
+	}
 
 	_, err := s.stdin.Write([]byte(fullCommand + "\n"))
 	if err != nil {
@@ -269,8 +292,18 @@ func (s *PersistentShell) killChildren() {
 }
 
 func (s *PersistentShell) Exec(ctx context.Context, command string, timeoutMs int) (string, string, int, bool, error) {
+	// Safety check for nil shell instance
+	if s == nil {
+		return "", "Shell instance is nil", 1, false, errors.New("shell instance is nil")
+	}
+
 	if !s.isAlive {
 		return "", "Shell is not alive", 1, false, errors.New("shell is not alive")
+	}
+
+	// Safety check for nil commandQueue
+	if s.commandQueue == nil {
+		return "", "Shell command queue is not initialized", 1, false, errors.New("shell command queue is not initialized")
 	}
 
 	timeout := time.Duration(timeoutMs) * time.Millisecond
@@ -288,6 +321,11 @@ func (s *PersistentShell) Exec(ctx context.Context, command string, timeoutMs in
 }
 
 func (s *PersistentShell) Close() {
+	// Safety check for nil shell instance
+	if s == nil {
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -295,9 +333,13 @@ func (s *PersistentShell) Close() {
 		return
 	}
 
-	s.stdin.Write([]byte("exit\n"))
+	if s.stdin != nil {
+		s.stdin.Write([]byte("exit\n"))
+	}
 
-	s.cmd.Process.Kill()
+	if s.cmd != nil && s.cmd.Process != nil {
+		s.cmd.Process.Kill()
+	}
 	s.isAlive = false
 }
 
