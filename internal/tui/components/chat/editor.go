@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -156,6 +157,15 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.session = msg
 		}
 		return m, nil
+	case util.FocusMsg:
+		if msg.Focused {
+			// Show blinking cursor when pane is focused
+			cmd = m.textarea.Cursor.SetMode(cursor.CursorBlink)
+		} else {
+			// Hide cursor when pane is not focused
+			cmd = m.textarea.Cursor.SetMode(cursor.CursorHide)
+		}
+		return m, cmd
 	case dialog.AttachmentAddedMsg:
 		if len(m.attachments) >= maxAttachments {
 			logging.ErrorPersist(fmt.Sprintf("cannot add more than %d images", maxAttachments))
@@ -306,6 +316,10 @@ func CreateTextArea(existing *textarea.Model) textarea.Model {
 	}
 
 	ta.Focus()
+
+	// Set initial cursor mode to blinking (default to focused)
+	ta.Cursor.SetMode(cursor.CursorBlink)
+
 	return ta
 }
 
