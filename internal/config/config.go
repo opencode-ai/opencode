@@ -378,10 +378,10 @@ func setProviderDefaults() {
 
 	// Google Cloud VertexAI configuration
 	if hasVertexAICredentials() {
-		viper.SetDefault("agents.coder.model", models.VertexAIGemini25)
-		viper.SetDefault("agents.summarizer.model", models.VertexAIGemini25)
-		viper.SetDefault("agents.task.model", models.VertexAIGemini25Flash)
-		viper.SetDefault("agents.title.model", models.VertexAIGemini25Flash)
+		viper.SetDefault("agents.coder.model", models.VertexAIGemini25ProPreview0605)
+		viper.SetDefault("agents.summarizer.model", models.VertexAIGemini25ProPreview0605)
+		viper.SetDefault("agents.task.model", models.VertexAIGemini25FlashPreview520)
+		viper.SetDefault("agents.title.model", models.VertexAIGemini25FlashPreview520)
 		return
 	}
 }
@@ -800,10 +800,10 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		maxTokens := int64(5000)
 
 		if agent == AgentTitle {
-			model = models.VertexAIGemini25Flash
+			model = models.VertexAIGemini25FlashPreview520
 			maxTokens = 80
 		} else {
-			model = models.VertexAIGemini25
+			model = models.VertexAIGemini25ProPreview0605
 		}
 
 		cfg.Agents[agent] = Agent{
