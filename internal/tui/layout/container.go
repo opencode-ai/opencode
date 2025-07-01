@@ -11,6 +11,7 @@ type Container interface {
 	tea.Model
 	Sizeable
 	Bindings
+	Model() tea.Model
 }
 type container struct {
 	width  int
@@ -119,6 +120,10 @@ func (c *container) BindingKeys() []key.Binding {
 		return b.BindingKeys()
 	}
 	return []key.Binding{}
+}
+
+func (c *container) Model() tea.Model {
+	return c.content
 }
 
 type ContainerOption func(*container)

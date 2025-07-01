@@ -5,7 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	utilComponents "github.com/opencode-ai/opencode/internal/tui/components/util"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
+	"github.com/opencode-ai/opencode/internal/tui/bindings"
 	"github.com/opencode-ai/opencode/internal/tui/styles"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
 	"github.com/opencode-ai/opencode/internal/tui/util"
@@ -57,7 +57,7 @@ type CloseCommandDialogMsg struct{}
 // CommandDialog interface for the command selection dialog
 type CommandDialog interface {
 	tea.Model
-	layout.Bindings
+	bindings.Bindings
 	SetCommands(commands []Command)
 }
 
@@ -159,7 +159,7 @@ func (c *commandDialogCmp) View() string {
 }
 
 func (c *commandDialogCmp) BindingKeys() []key.Binding {
-	return layout.KeyMapToSlice(commandKeys)
+	return bindings.KeyMapToSlice(commandKeys)
 }
 
 func (c *commandDialogCmp) SetCommands(commands []Command) {

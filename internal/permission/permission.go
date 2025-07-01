@@ -72,6 +72,12 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 }
 
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
+	// Check global "always allow" setting first
+	globalCfg := config.Get()
+	if globalCfg != nil && globalCfg.AlwaysAllowPermissions {
+		return true
+	}
+
 	if slices.Contains(s.autoApproveSessions, opts.SessionID) {
 		return true
 	}

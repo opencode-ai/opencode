@@ -13,7 +13,7 @@ var VertexAIGeminiModels = map[ModelID]Model{
 		ID:                  VertexAIGemini25Flash,
 		Name:                "VertexAI: Gemini 2.5 Flash",
 		Provider:            ProviderVertexAI,
-		APIModel:            "gemini-2.5-flash-preview-04-17",
+		APIModel:            "gemini-2.5-flash-preview-05-20",
 		CostPer1MIn:         GeminiModels[Gemini25Flash].CostPer1MIn,
 		CostPer1MInCached:   GeminiModels[Gemini25Flash].CostPer1MInCached,
 		CostPer1MOut:        GeminiModels[Gemini25Flash].CostPer1MOut,
