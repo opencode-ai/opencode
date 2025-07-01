@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/tools"
@@ -62,6 +63,9 @@ func runTool(ctx context.Context, c MCPClient, toolName string, input string) (t
 	toolRequest := mcp.CallToolRequest{}
 	toolRequest.Params.Name = toolName
 	var args map[string]any
+	if strings.TrimSpace(input) == "" {
+		input = "{}"
+	}
 	if err = json.Unmarshal([]byte(input), &args); err != nil {
 		return tools.NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
