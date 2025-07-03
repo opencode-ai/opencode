@@ -12,6 +12,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/bedrock"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	sdkoption "github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/models"
 	toolsPkg "github.com/opencode-ai/opencode/internal/llm/tools"
@@ -20,9 +21,11 @@ import (
 )
 
 type anthropicOptions struct {
-	useBedrock   bool
-	disableCache bool
-	shouldThink  func(userMessage string) bool
+	useBedrock    bool
+	useVertex     bool
+	vertexOptions vertexOptions
+	disableCache  bool
+	shouldThink   func(userMessage string) bool
 }
 
 type AnthropicOption func(*anthropicOptions)
@@ -40,13 +43,42 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	for _, o := range opts.anthropicOptions {
 		o(&anthropicOpts)
 	}
+	resolvedBaseURL := ""
 
 	anthropicClientOptions := []option.RequestOption{}
-	if opts.apiKey != "" {
-		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
-	}
 	if anthropicOpts.useBedrock {
 		anthropicClientOptions = append(anthropicClientOptions, bedrock.WithLoadDefaultConfig(context.Background()))
+	}
+	if anthropicOpts.useVertex {
+		middleware := vertexMiddleware(
+			anthropicOpts.vertexOptions.location,
+			anthropicOpts.vertexOptions.projectID,
+		)
+		anthropicClientOptions = append(
+			anthropicClientOptions,
+			sdkoption.WithMiddleware(middleware),
+		)
+		if opts.baseURL == "" {
+			resolvedBaseURL = fmt.Sprintf("https://%s-aiplatform.googleapis.com/", anthropicOpts.vertexOptions.location)
+		} else {
+			resolvedBaseURL = opts.baseURL
+		}
+	}
+
+	if opts.headers != nil {
+		for k, v := range opts.headers {
+			anthropicClientOptions = append(anthropicClientOptions, option.WithHeader(k, v))
+		}
+	}
+	if resolvedBaseURL != "" {
+		anthropicClientOptions = append(anthropicClientOptions, option.WithBaseURL(resolvedBaseURL))
+	} else if opts.baseURL != "" {
+		anthropicClientOptions = append(anthropicClientOptions, option.WithBaseURL(opts.baseURL))
+		if opts.apiKey != "" {
+			anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(opts.apiKey))
+		}
+	} else if opts.apiKey != "" {
+		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
 	}
 
 	client := anthropic.NewClient(anthropicClientOptions...)
@@ -261,7 +293,6 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 		} else {
 			logging.Debug("Prepared messages", "messages", string(jsonData))
 		}
-
 	}
 	attempts := 0
 	eventChan := make(chan ProviderEvent)
@@ -451,6 +482,9 @@ func (a *anthropicClient) usage(msg anthropic.Message) TokenUsage {
 
 func WithAnthropicBedrock(useBedrock bool) AnthropicOption {
 	return func(options *anthropicOptions) {
+		if useBedrock {
+			options.useVertex = false
+		}
 		options.useBedrock = useBedrock
 	}
 }
@@ -468,5 +502,13 @@ func DefaultShouldThinkFn(s string) bool {
 func WithAnthropicShouldThinkFn(fn func(string) bool) AnthropicOption {
 	return func(options *anthropicOptions) {
 		options.shouldThink = fn
+	}
+}
+
+func WithVertexAI(projectID, localtion string) AnthropicOption {
+	return func(options *anthropicOptions) {
+		options.useVertex = true
+		options.useBedrock = false
+		options.vertexOptions = vertexOptions{projectID: projectID, location: localtion}
 	}
 }

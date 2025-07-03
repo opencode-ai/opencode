@@ -725,12 +725,20 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	if agentConfig.MaxTokens > 0 {
 		maxTokens = agentConfig.MaxTokens
 	}
+
 	opts := []provider.ProviderClientOption{
 		provider.WithAPIKey(providerCfg.APIKey),
 		provider.WithModel(model),
 		provider.WithSystemMessage(prompt.GetAgentPrompt(agentName, model.Provider)),
 		provider.WithMaxTokens(maxTokens),
 	}
+	if providerCfg.BaseURL != "" {
+		opts = append(opts, provider.WithBaseURL(providerCfg.BaseURL))
+	}
+	if len(providerCfg.Headers) != 0 {
+		opts = append(opts, provider.WithHeaders(providerCfg.Headers))
+	}
+
 	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
 		opts = append(
 			opts,

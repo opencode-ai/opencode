@@ -33,6 +33,7 @@ type keyMap struct {
 	Filepicker    key.Binding
 	Models        key.Binding
 	SwitchTheme   key.Binding
+	PruneSession  key.Binding
 }
 
 type startCompactSessionMsg struct{}
@@ -78,6 +79,11 @@ var keys = keyMap{
 		key.WithKeys("ctrl+t"),
 		key.WithHelp("ctrl+t", "switch theme"),
 	),
+
+	PruneSession: key.NewBinding(
+		key.WithKeys("ctrl+p"),
+		key.WithHelp("ctrl+p", "delete session"),
+	),
 }
 
 var helpEsc = key.NewBinding(
@@ -116,6 +122,9 @@ type appModel struct {
 
 	showSessionDialog bool
 	sessionDialog     dialog.SessionDialog
+
+	showDeleteSessionDialog bool
+	deleteSessionDialog     dialog.SessionDialog
 
 	showCommandDialog bool
 	commandDialog     dialog.CommandDialog
@@ -162,6 +171,8 @@ func (a appModel) Init() tea.Cmd {
 	cmd = a.filepicker.Init()
 	cmds = append(cmds, cmd)
 	cmd = a.themeDialog.Init()
+	cmds = append(cmds, cmd)
+	cmd = a.deleteSessionDialog.Init()
 	cmds = append(cmds, cmd)
 
 	// Check if we should show the init dialog
@@ -296,6 +307,10 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case dialog.CloseSessionDialogMsg:
+		if a.showDeleteSessionDialog {
+			a.showDeleteSessionDialog = false
+			return a, nil
+		}
 		a.showSessionDialog = false
 		return a, nil
 
@@ -400,6 +415,18 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.selectedSession = msg.Payload
 		}
 	case dialog.SessionSelectedMsg:
+		// if we're in "delete" mode, delete instead of switch
+		if a.showDeleteSessionDialog {
+			a.showDeleteSessionDialog = false
+			return a, func() tea.Msg {
+				ctx := context.Background()
+				if err := a.app.Sessions.Delete(ctx, msg.Session.ID); err != nil {
+					return util.InfoMsg{Type: util.InfoTypeError, Msg: "Delete failed: " + err.Error()}
+				}
+				return util.InfoMsg{Type: util.InfoTypeInfo, Msg: "Session deleted"}
+			}
+		}
+		// otherwise fall through to normal "switch session"
 		a.showSessionDialog = false
 		if a.currentPage == page.ChatPage {
 			return a, util.CmdHandler(chat.SessionSelectedMsg(msg.Session))
@@ -518,6 +545,20 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.themeDialog.Init()
 			}
 			return a, nil
+		case key.Matches(msg, keys.PruneSession):
+			if a.currentPage == page.ChatPage && !a.showQuit && !a.showPermissions &&
+				!a.showSessionDialog && !a.showCommandDialog {
+				sessions, err := a.app.Sessions.List(context.Background())
+				if err != nil {
+					return a, util.ReportError(err)
+				}
+				if len(sessions) == 0 {
+					return a, util.ReportWarn("No sessions available")
+				}
+				a.deleteSessionDialog.SetSessions(sessions)
+				a.showDeleteSessionDialog = true
+			}
+			return a, nil
 		case key.Matches(msg, returnKey) || key.Matches(msg):
 			if msg.String() == quitKey {
 				if a.currentPage == page.LogsPage {
@@ -611,6 +652,16 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.sessionDialog = d.(dialog.SessionDialog)
 		cmds = append(cmds, sessionCmd)
 		// Only block key messages send all other messages down
+		if _, ok := msg.(tea.KeyMsg); ok {
+			return a, tea.Batch(cmds...)
+		}
+	}
+
+	if a.showDeleteSessionDialog {
+		d, cmd := a.deleteSessionDialog.Update(msg)
+		a.deleteSessionDialog = d.(dialog.SessionDialog)
+		cmds = append(cmds, cmd)
+		// block other tea.KeyMsgs
 		if _, ok := msg.(tea.KeyMsg); ok {
 			return a, tea.Batch(cmds...)
 		}
@@ -824,6 +875,21 @@ func (a appModel) View() string {
 		)
 	}
 
+	if a.showDeleteSessionDialog {
+		overlay := a.deleteSessionDialog.View()
+		row := lipgloss.Height(appView) / 2
+		row -= lipgloss.Height(overlay) / 2
+		col := lipgloss.Width(appView) / 2
+		col -= lipgloss.Width(overlay) / 2
+		appView = layout.PlaceOverlay(
+			col,
+			row,
+			overlay,
+			appView,
+			true,
+		)
+	}
+
 	if a.showModelDialog {
 		overlay := a.modelDialog.View()
 		row := lipgloss.Height(appView) / 2
@@ -906,8 +972,9 @@ func New(app *app.App) tea.Model {
 		status:        core.NewStatusCmp(app.LSPClients),
 		help:          dialog.NewHelpCmp(),
 		quit:          dialog.NewQuitCmp(),
-		sessionDialog: dialog.NewSessionDialogCmp(),
-		commandDialog: dialog.NewCommandDialogCmp(),
+		sessionDialog:       dialog.NewSessionDialogCmp(),
+		deleteSessionDialog: dialog.NewSessionDialogCmp(),
+		commandDialog:       dialog.NewCommandDialogCmp(),
 		modelDialog:   dialog.NewModelDialogCmp(),
 		permissions:   dialog.NewPermissionDialogCmp(),
 		initDialog:    dialog.NewInitDialogCmp(),
