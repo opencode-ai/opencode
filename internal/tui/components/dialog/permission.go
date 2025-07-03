@@ -160,17 +160,29 @@ func (p *permissionDialogCmp) renderButtons() string {
 	// Style the selected button
 	switch p.selectedOption {
 	case 0:
-		allowStyle = allowStyle.Background(t.Primary()).Foreground(t.Background())
+		if theme.IsTransparentBackground() {
+			allowStyle = allowStyle.Background(t.Background()).Foreground(t.Primary())
+		} else {
+			allowStyle = allowStyle.Background(t.Primary()).Foreground(t.Background())
+		}
 		allowSessionStyle = allowSessionStyle.Background(t.Background()).Foreground(t.Primary())
 		denyStyle = denyStyle.Background(t.Background()).Foreground(t.Primary())
 	case 1:
 		allowStyle = allowStyle.Background(t.Background()).Foreground(t.Primary())
-		allowSessionStyle = allowSessionStyle.Background(t.Primary()).Foreground(t.Background())
+		if theme.IsTransparentBackground() {
+			allowSessionStyle = allowSessionStyle.Background(t.Background()).Foreground(t.Primary())
+		} else {
+			allowSessionStyle = allowSessionStyle.Background(t.Primary()).Foreground(t.Background())
+		}
 		denyStyle = denyStyle.Background(t.Background()).Foreground(t.Primary())
 	case 2:
 		allowStyle = allowStyle.Background(t.Background()).Foreground(t.Primary())
 		allowSessionStyle = allowSessionStyle.Background(t.Background()).Foreground(t.Primary())
-		denyStyle = denyStyle.Background(t.Primary()).Foreground(t.Background())
+		if theme.IsTransparentBackground() {
+			denyStyle = denyStyle.Background(t.Background()).Foreground(t.Primary())
+		} else {
+			denyStyle = denyStyle.Background(t.Primary()).Foreground(t.Background())
+		}
 	}
 
 	allowButton := allowStyle.Padding(0, 1).Render("Allow (a)")

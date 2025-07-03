@@ -34,10 +34,17 @@ func (ci *CompletionItem) Render(selected bool, width int) string {
 		Padding(0, 1)
 
 	if selected {
-		itemStyle = itemStyle.
-			Background(t.Background()).
-			Foreground(t.Primary()).
-			Bold(true)
+		if theme.IsTransparentBackground() {
+			itemStyle = itemStyle.
+				Background(t.Background()).
+				Foreground(t.Primary()).
+				Bold(true)
+		} else {
+			itemStyle = itemStyle.
+				Background(t.Primary()).
+				Foreground(t.Background()).
+				Bold(true)
+		}
 	}
 
 	title := itemStyle.Render(

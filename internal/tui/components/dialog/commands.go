@@ -29,13 +29,23 @@ func (ci Command) Render(selected bool, width int) string {
 		Background(t.Background())
 
 	if selected {
-		itemStyle = itemStyle.
-			Background(t.Primary()).
-			Foreground(t.Background()).
-			Bold(true)
-		descStyle = descStyle.
-			Background(t.Primary()).
-			Foreground(t.Background())
+		if theme.IsTransparentBackground() {
+			itemStyle = itemStyle.
+				Background(t.Background()).
+				Foreground(t.Primary()).
+				Bold(true)
+			descStyle = descStyle.
+				Background(t.Background()).
+				Foreground(t.Primary())
+		} else {
+			itemStyle = itemStyle.
+				Background(t.Primary()).
+				Foreground(t.Background()).
+				Bold(true)
+			descStyle = descStyle.
+				Background(t.Primary()).
+				Foreground(t.Background())
+		}
 	}
 
 	title := itemStyle.Padding(0, 1).Render(ci.Title)

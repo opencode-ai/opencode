@@ -92,6 +92,20 @@ You can enable or disable this feature in your configuration file:
 }
 ```
 
+### Theme Configuration
+
+OpenCode supports various themes with an optional transparent background mode. The transparent background feature removes all background colors from the interface, making it perfect for terminal transparency or minimal setups.
+
+To enable transparent background mode, add the following to your configuration file:
+
+```json
+{
+  "tui": {
+    "theme": "opencode",
+    "transparentBackground": true
+  }
+}
+```
 ### Environment Variables
 
 You can configure OpenCode using environment variables:
@@ -172,6 +186,10 @@ This is useful if you want to use a different shell than your default system she
       "model": "claude-3.7-sonnet",
       "maxTokens": 80
     }
+  },
+  "tui": {
+    "theme": "opencode",
+    "transparentBackground": false
   },
   "shell": {
     "path": "/bin/bash",

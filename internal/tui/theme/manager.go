@@ -63,6 +63,7 @@ func SetTheme(name string) error {
 
 // CurrentTheme returns the currently active theme.
 // If no theme is set, it returns nil.
+// If transparency is enabled in config, it returns a transparent version of the theme.
 func CurrentTheme() Theme {
 	globalManager.mu.RLock()
 	defer globalManager.mu.RUnlock()
@@ -71,7 +72,15 @@ func CurrentTheme() Theme {
 		return nil
 	}
 
-	return globalManager.themes[globalManager.currentName]
+	theme := globalManager.themes[globalManager.currentName]
+	
+	// Check if transparency is enabled in config
+	cfg := config.Get()
+	if cfg != nil && cfg.TUI.TransparentBackground {
+		return NewTransparentTheme(theme)
+	}
+	
+	return theme
 }
 
 // CurrentThemeName returns the name of the currently active theme.
@@ -115,4 +124,16 @@ func GetTheme(name string) Theme {
 func updateConfigTheme(themeName string) error {
 	// Use the config package to update the theme
 	return config.UpdateTheme(themeName)
+}
+
+// SetTransparentBackground updates the transparent background setting.
+func SetTransparentBackground(enabled bool) error {
+	// Use the config package to update the transparency setting
+	return config.UpdateTransparentBackground(enabled)
+}
+
+// IsTransparentBackground returns whether transparent background is enabled.
+func IsTransparentBackground() bool {
+	cfg := config.Get()
+	return cfg != nil && cfg.TUI.TransparentBackground
 }

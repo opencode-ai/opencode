@@ -90,11 +90,21 @@ func (q *quitDialogCmp) View() string {
 	spacerStyle := baseStyle.Background(t.Background())
 
 	if q.selectedNo {
-		noStyle = noStyle.Background(t.Primary()).Foreground(t.Background())
-		yesStyle = yesStyle.Background(t.Background()).Foreground(t.Primary())
+		if theme.IsTransparentBackground() {
+			noStyle = noStyle.Background(t.Background()).Foreground(t.Primary()).Bold(true)
+			yesStyle = yesStyle.Background(t.Background()).Foreground(t.Text())
+		} else {
+			noStyle = noStyle.Background(t.Primary()).Foreground(t.Background())
+			yesStyle = yesStyle.Background(t.Background()).Foreground(t.Primary())
+		}
 	} else {
-		yesStyle = yesStyle.Background(t.Primary()).Foreground(t.Background())
-		noStyle = noStyle.Background(t.Background()).Foreground(t.Primary())
+		if theme.IsTransparentBackground() {
+			yesStyle = yesStyle.Background(t.Background()).Foreground(t.Primary()).Bold(true)
+			noStyle = noStyle.Background(t.Background()).Foreground(t.Text())
+		} else {
+			yesStyle = yesStyle.Background(t.Primary()).Foreground(t.Background())
+			noStyle = noStyle.Background(t.Background()).Foreground(t.Primary())
+		}
 	}
 
 	yesButton := yesStyle.Padding(0, 1).Render("Yes")
@@ -108,14 +118,16 @@ func (q *quitDialogCmp) View() string {
 		buttons = spacerStyle.Render(strings.Repeat(" ", remainingWidth)) + buttons
 	}
 
-	content := baseStyle.Render(
-		lipgloss.JoinVertical(
-			lipgloss.Center,
-			question,
-			"",
-			buttons,
-		),
-	)
+	content := baseStyle.
+		Background(t.Background()).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Center,
+				question,
+				"",
+				buttons,
+			),
+		)
 
 	return baseStyle.Padding(1, 2).
 		Border(lipgloss.RoundedBorder()).

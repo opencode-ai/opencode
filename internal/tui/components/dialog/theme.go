@@ -122,6 +122,25 @@ func (t *themeDialogCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, nil
 }
 
+// applySelectionStyle applies consistent selection styling for both transparent and non-transparent themes
+func applySelectionStyle(baseStyle lipgloss.Style, isSelected bool, currentTheme theme.Theme) lipgloss.Style {
+	if !isSelected {
+		return baseStyle
+	}
+
+	if theme.IsTransparentBackground() {
+		return baseStyle.
+			Background(currentTheme.Background()).
+			Foreground(currentTheme.Primary()).
+			Bold(true)
+	}
+
+	return baseStyle.
+		Background(currentTheme.Primary()).
+		Foreground(currentTheme.Background()).
+		Bold(true)
+}
+
 func (t *themeDialogCmp) View() string {
 	currentTheme := theme.CurrentTheme()
 	baseStyle := styles.BaseStyle()
@@ -148,15 +167,7 @@ func (t *themeDialogCmp) View() string {
 	// Build the theme list
 	themeItems := make([]string, 0, len(t.themes))
 	for i, themeName := range t.themes {
-		itemStyle := baseStyle.Width(maxWidth)
-
-		if i == t.selectedIdx {
-			itemStyle = itemStyle.
-				Background(currentTheme.Primary()).
-				Foreground(currentTheme.Background()).
-				Bold(true)
-		}
-
+		itemStyle := applySelectionStyle(baseStyle.Width(maxWidth), i == t.selectedIdx, currentTheme)
 		themeItems = append(themeItems, itemStyle.Padding(0, 1).Render(themeName))
 	}
 
@@ -195,4 +206,3 @@ func NewThemeDialogCmp() ThemeDialog {
 		currentTheme: "",
 	}
 }
-

@@ -290,10 +290,17 @@ func (f *filepickerCmp) View() string {
 		itemStyle := styles.BaseStyle().Width(adjustedWidth)
 
 		if i == f.cursor {
-			itemStyle = itemStyle.
-				Background(t.Primary()).
-				Foreground(t.Background()).
-				Bold(true)
+			if theme.IsTransparentBackground() {
+				itemStyle = itemStyle.
+					Background(t.Background()).
+					Foreground(t.Primary()).
+					Bold(true)
+			} else {
+				itemStyle = itemStyle.
+					Background(t.Primary()).
+					Foreground(t.Background()).
+					Bold(true)
+			}
 		}
 		filename := file.Name()
 

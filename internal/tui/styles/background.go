@@ -26,7 +26,103 @@ func getColorRGB(c lipgloss.TerminalColor) (uint8, uint8, uint8) {
 
 // ForceReplaceBackgroundWithLipgloss replaces any ANSI background color codes
 // in `input` with a single 24‑bit background (48;2;R;G;B).
+// If the background color is empty (transparent), it removes all background colors.
 func ForceReplaceBackgroundWithLipgloss(input string, newBgColor lipgloss.TerminalColor) string {
+	// Check if this is a transparent background (empty AdaptiveColor)
+	if adaptiveColor, ok := newBgColor.(lipgloss.AdaptiveColor); ok {
+		if adaptiveColor.Light == "" && adaptiveColor.Dark == "" {
+			// For transparent backgrounds, just remove all background colors
+			return ansiEscape.ReplaceAllStringFunc(input, func(seq string) string {
+				const (
+					escPrefixLen = 2 // "\x1b["
+					escSuffixLen = 1 // "m"
+				)
+
+				raw := seq
+				start := escPrefixLen
+				end := len(raw) - escSuffixLen
+
+				var sb strings.Builder
+				// reserve enough space for non-background codes
+				sb.Grow(end - start)
+
+				// scan from start..end, token by token
+				for i := start; i < end; {
+					// find the next ';' or end
+					j := i
+					for j < end && raw[j] != ';' {
+						j++
+					}
+					token := raw[i:j]
+
+					// fast‑path: skip "48;5;N" or "48;2;R;G;B"
+					if len(token) == 2 && token[0] == '4' && token[1] == '8' {
+						k := j + 1
+						if k < end {
+							// find next token
+							l := k
+							for l < end && raw[l] != ';' {
+								l++
+							}
+							next := raw[k:l]
+							if next == "5" {
+								// skip "48;5;N"
+								m := l + 1
+								for m < end && raw[m] != ';' {
+									m++
+								}
+								i = m + 1
+								continue
+							} else if next == "2" {
+								// skip "48;2;R;G;B"
+								m := l + 1
+								for count := 0; count < 3 && m < end; count++ {
+									for m < end && raw[m] != ';' {
+										m++
+									}
+									m++
+								}
+								i = m
+								continue
+							}
+						}
+					}
+
+					// decide whether to keep this token
+					// manually parse ASCII digits to int
+					isNum := true
+					val := 0
+					for p := i; p < j; p++ {
+						c := raw[p]
+						if c < '0' || c > '9' {
+							isNum = false
+							break
+						}
+						val = val*10 + int(c-'0')
+					}
+					keep := !isNum ||
+						((val < 40 || val > 47) && (val < 100 || val > 107) && val != 49)
+
+					if keep {
+						if sb.Len() > 0 {
+							sb.WriteByte(';')
+						}
+						sb.WriteString(token)
+					}
+					// advance past this token (and the semicolon)
+					i = j + 1
+				}
+
+				// For transparent backgrounds, don't add any background
+				if sb.Len() == 0 {
+					return "" // Remove the entire escape sequence if it only had background colors
+				}
+				return "\x1b[" + sb.String() + "m"
+			})
+		}
+	}
+
+	// For non-transparent backgrounds, proceed with the original logic
 	// Precompute our new-bg sequence once
 	r, g, b := getColorRGB(newBgColor)
 	newBg := fmt.Sprintf("48;2;%d;%d;%d", r, g, b)

@@ -205,8 +205,17 @@ func (m *modelDialogCmp) View() string {
 	for i := m.scrollOffset; i < endIdx; i++ {
 		itemStyle := baseStyle.Width(maxDialogWidth)
 		if i == m.selectedIdx {
-			itemStyle = itemStyle.Background(t.Primary()).
-				Foreground(t.Background()).Bold(true)
+			if theme.IsTransparentBackground() {
+				itemStyle = itemStyle.
+					Background(t.Background()).
+					Foreground(t.Primary()).
+					Bold(true)
+			} else {
+				itemStyle = itemStyle.
+					Background(t.Primary()).
+					Foreground(t.Background()).
+					Bold(true)
+			}
 		}
 		modelItems = append(modelItems, itemStyle.Render(m.models[i].Name))
 	}

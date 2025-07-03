@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ImageBakcground = "#212121"
+	ImageBackground = "#212121"
 )
 
 // Style generation functions that use the current theme
