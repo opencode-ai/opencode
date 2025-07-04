@@ -496,6 +496,35 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	provider := model.Provider
 	providerCfg, providerExists := cfg.Providers[provider]
 
+	// Special handling for Copilot provider - allow empty API key and use device flow
+	if provider == models.ProviderCopilot {
+		logging.Debug("Validating Copilot provider", "exists", providerExists)
+		
+		// If provider doesn't exist in config, add it with empty API key
+		if !providerExists {
+			cfg.Providers[provider] = Provider{
+				APIKey: "",  // We'll use device flow for authentication
+			}
+			logging.Info("Added Copilot provider to config for device flow authentication")
+		} else if providerCfg.Disabled {
+			// Provider explicitly disabled - revert to default model
+			logging.Warn("Copilot provider is disabled but model requires it", 
+				"agent", name,
+				"model", agent.Model)
+			
+			// Set default model based on available providers
+			if setDefaultModelForAgent(name) {
+				logging.Info("set default model for agent", "agent", name, "model", cfg.Agents[name].Model)
+			} else {
+				return fmt.Errorf("no valid provider available for agent %s", name)
+			}
+		}
+		
+		// Copilot provider is valid even without API key (will use device flow)
+		return nil
+	}
+
+	// For all other providers
 	if !providerExists {
 		// Provider not configured, check if we have environment variables
 		apiKey := getProviderAPIKey(provider)
@@ -613,15 +642,18 @@ func Validate() error {
 
 	// Validate agent models
 	for name, agent := range cfg.Agents {
+		logging.Debug("Validating agent", "name", name, "model", agent.Model)
 		if err := validateAgent(cfg, name, agent); err != nil {
+			logging.Error("Agent validation failed", "name", name, "error", err)
 			return err
 		}
 	}
 
 	// Validate providers
 	for provider, providerCfg := range cfg.Providers {
-		if providerCfg.APIKey == "" && !providerCfg.Disabled {
-			fmt.Printf("provider has no API key, marking as disabled %s", provider)
+		// Special case for Copilot - we allow it to have no API key
+		if provider != models.ProviderCopilot && providerCfg.APIKey == "" && !providerCfg.Disabled {
+			fmt.Printf("provider has no API key, marking as disabled %s\n", provider)
 			logging.Warn("provider has no API key, marking as disabled", "provider", provider)
 			providerCfg.Disabled = true
 			cfg.Providers[provider] = providerCfg
@@ -637,6 +669,7 @@ func Validate() error {
 		}
 	}
 
+	logging.Debug("Configuration validation completed successfully")
 	return nil
 }
 
@@ -868,6 +901,13 @@ func Get() *Config {
 	return cfg
 }
 
+// SetNonInteractive sets the non-interactive flag in the global viper config
+// This helps components detect if they're running in non-interactive mode
+func SetNonInteractive(val bool) {
+	viper.Set("non_interactive", val)
+	logging.Debug("Set non_interactive mode", "value", val)
+}
+
 // WorkingDirectory returns the current working directory from the configuration.
 func WorkingDirectory() string {
 	if cfg == nil {
@@ -929,11 +969,18 @@ func UpdateTheme(themeName string) error {
 	})
 }
 
-// Tries to load Github token from all possible locations
+// LoadGitHubToken loads GitHub token from config files, environment variables, or other sources
+// Returns the token if found, or a special error "no_copilot_token" if no token is found
+// This follows the 4-step flow: 1. Check if Copilot is enabled, 2. Check for token in config folder
 func LoadGitHubToken() (string, error) {
-	// First check environment variable
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		return token, nil
+	logging.Debug("Attempting to load GitHub token for Copilot")
+	
+	// First check environment variables
+	for _, envName := range []string{"GITHUB_TOKEN", "GITHUB_COPILOT_TOKEN", "GH_COPILOT_TOKEN"} {
+		if token := os.Getenv(envName); token != "" {
+			logging.Debug("Found GitHub token in environment variable", "env_var", envName)
+			return token, nil
+		}
 	}
 
 	// Get config directory
@@ -950,11 +997,13 @@ func LoadGitHubToken() (string, error) {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
 
-	// Try both hosts.json and apps.json files
+	// Check standard Copilot config files
 	filePaths := []string{
 		filepath.Join(configDir, "github-copilot", "hosts.json"),
 		filepath.Join(configDir, "github-copilot", "apps.json"),
 	}
+
+	logging.Debug("Checking Copilot config files")
 
 	for _, filePath := range filePaths {
 		data, err := os.ReadFile(filePath)
@@ -967,14 +1016,20 @@ func LoadGitHubToken() (string, error) {
 			continue
 		}
 
+		// For hosts.json, we expect keys like "github.com"
+		// For apps.json, we expect keys like "github.com:Iv1.b507a08c87ecfe98"
 		for key, value := range config {
 			if strings.Contains(key, "github.com") {
-				if oauthToken, ok := value["oauth_token"].(string); ok {
+				if oauthToken, ok := value["oauth_token"].(string); ok && oauthToken != "" {
+					logging.Debug("Found GitHub token in config file", "path", filePath)
 					return oauthToken, nil
 				}
 			}
 		}
 	}
 
-	return "", fmt.Errorf("GitHub token not found in standard locations")
+	// Return a special error that indicates we need to use device code flow
+	logging.Debug("No Copilot token found - will need to use device code flow")
+	return "", fmt.Errorf("no_copilot_token")
 }
+

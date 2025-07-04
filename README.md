@@ -101,7 +101,7 @@ You can configure OpenCode using environment variables:
 | `ANTHROPIC_API_KEY`        | For Claude models                                                                |
 | `OPENAI_API_KEY`           | For OpenAI models                                                                |
 | `GEMINI_API_KEY`           | For Google Gemini models                                                         |
-| `GITHUB_TOKEN`             | For Github Copilot models (see [Using Github Copilot](#using-github-copilot))    |
+| `GITHUB_TOKEN`             | For Github Copilot models (see [Using GitHub Copilot](#using-github-copilot))    |
 | `VERTEXAI_PROJECT`         | For Google Cloud VertexAI (Gemini)                                               |
 | `VERTEXAI_LOCATION`        | For Google Cloud VertexAI (Gemini)                                               |
 | `GROQ_API_KEY`             | For Groq models                                                                  |
@@ -236,6 +236,37 @@ OpenCode supports a variety of AI models from different providers:
 - O4 Mini
 - Gemini 2.0 Flash
 - Gemini 2.5 Pro
+
+#### Using GitHub Copilot
+
+OpenCode supports using GitHub Copilot's models through a streamlined authentication flow:
+
+1. Add Copilot to your configuration:
+```json
+{
+  "agents": {
+    "coder": {
+      "model": "copilot.claude-3.7-sonnet",
+      "maxTokens": 16384
+    }
+  },
+  "providers": {
+    "copilot": {
+      "disabled": false
+    }
+  }
+}
+```
+
+2. When you first run OpenCode with a Copilot model selected, the application will:
+   - Check for an existing Copilot token in standard locations (hosts.json, apps.json)
+   - If no token is found, automatically start the authentication flow
+   - Prompt you to visit a GitHub URL and enter a device code
+   - Store the token in the standard GitHub Copilot location (`~/.config/github-copilot/hosts.json`)
+
+3. For subsequent runs, OpenCode will use your saved token automatically.
+
+Note: You need an active GitHub Copilot subscription to use these models.
 
 ### Google
 
