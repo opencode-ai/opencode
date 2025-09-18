@@ -88,7 +88,8 @@
             "copilot.o3-mini",
             "copilot.o4-mini",
             "copilot.gemini-2.0-flash",
-            "copilot.gemini-2.5-pro"
+            "copilot.gemini-2.5-pro",
+            "moonshotai/kimi-k2-instruct"
           ],
           "type": "string"
         },
@@ -198,7 +199,8 @@
               "copilot.o3-mini",
               "copilot.o4-mini",
               "copilot.gemini-2.0-flash",
-              "copilot.gemini-2.5-pro"
+              "copilot.gemini-2.5-pro",
+              "moonshotai/kimi-k2-instruct"
             ],
             "type": "string"
           },
