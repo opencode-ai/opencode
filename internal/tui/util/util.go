@@ -48,6 +48,9 @@ type (
 		TTL  time.Duration
 	}
 	ClearStatusMsg struct{}
+	FocusMsg       struct {
+		Focused bool
+	}
 )
 
 func Clamp(v, low, high int) int {
