@@ -52,8 +52,10 @@ type Agent struct {
 
 // Provider defines configuration for an LLM provider.
 type Provider struct {
-	APIKey   string `json:"apiKey"`
-	Disabled bool   `json:"disabled"`
+	APIKey   string            `json:"apiKey"`
+	BaseURL  string            `json:"baseURL,omitempty"`
+	Headers  map[string]string `json:"headers,omitempty"`
+	Disabled bool              `json:"disabled"`
 }
 
 // Data defines storage configuration.
@@ -124,8 +126,9 @@ var cfg *Config
 
 // Load initializes the configuration from environment variables and config files.
 // If debug is true, debug mode is enabled and log level is set to debug.
+// If configFile is provided, it will be used instead of the default config file locations.
 // It returns an error if configuration loading fails.
-func Load(workingDir string, debug bool) (*Config, error) {
+func Load(workingDir string, debug bool, configFile string) (*Config, error) {
 	if cfg != nil {
 		return cfg, nil
 	}
@@ -137,7 +140,7 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		LSP:        make(map[string]LSPConfig),
 	}
 
-	configureViper()
+	configureViper(configFile)
 	setDefaults(debug)
 
 	// Read global config
@@ -216,12 +219,19 @@ func Load(workingDir string, debug bool) (*Config, error) {
 }
 
 // configureViper sets up viper's configuration paths and environment variables.
-func configureViper() {
-	viper.SetConfigName(fmt.Sprintf(".%s", appName))
-	viper.SetConfigType("json")
-	viper.AddConfigPath("$HOME")
-	viper.AddConfigPath(fmt.Sprintf("$XDG_CONFIG_HOME/%s", appName))
-	viper.AddConfigPath(fmt.Sprintf("$HOME/.config/%s", appName))
+// If configFile is provided, it will be used instead of the default config file locations.
+func configureViper(configFile string) {
+	if configFile != "" {
+		// Use the specific config file provided
+		viper.SetConfigFile(configFile)
+	} else {
+		// Use default config file locations
+		viper.SetConfigName(fmt.Sprintf(".%s", appName))
+		viper.SetConfigType("json")
+		viper.AddConfigPath("$HOME")
+		viper.AddConfigPath(fmt.Sprintf("$XDG_CONFIG_HOME/%s", appName))
+		viper.AddConfigPath(fmt.Sprintf("$HOME/.config/%s", appName))
+	}
 	viper.SetEnvPrefix(strings.ToUpper(appName))
 	viper.AutomaticEnv()
 }

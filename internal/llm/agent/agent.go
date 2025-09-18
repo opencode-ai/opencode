@@ -731,20 +731,58 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 		provider.WithSystemMessage(prompt.GetAgentPrompt(agentName, model.Provider)),
 		provider.WithMaxTokens(maxTokens),
 	}
-	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
-		opts = append(
-			opts,
-			provider.WithOpenAIOptions(
-				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
-			),
-		)
-	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
-		opts = append(
-			opts,
-			provider.WithAnthropicOptions(
-				provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
-			),
-		)
+	
+	// Apply provider-specific options based on configuration
+	switch model.Provider {
+	case models.ProviderOpenAI, models.ProviderLocal, models.ProviderGROQ, models.ProviderOpenRouter, models.ProviderXAI:
+		openAIOpts := []provider.OpenAIOption{}
+		
+		// Add BaseURL if configured
+		if providerCfg.BaseURL != "" {
+			openAIOpts = append(openAIOpts, provider.WithOpenAIBaseURL(providerCfg.BaseURL))
+		}
+		
+		// Add Headers if configured
+		if len(providerCfg.Headers) > 0 {
+			openAIOpts = append(openAIOpts, provider.WithOpenAIExtraHeaders(providerCfg.Headers))
+		}
+		
+		// Add reasoning effort if applicable
+		if (model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal) && model.CanReason {
+			openAIOpts = append(openAIOpts, provider.WithReasoningEffort(agentConfig.ReasoningEffort))
+		}
+		
+		if len(openAIOpts) > 0 {
+			opts = append(opts, provider.WithOpenAIOptions(openAIOpts...))
+		}
+		
+	case models.ProviderAnthropic:
+		if model.CanReason && agentName == config.AgentCoder {
+			opts = append(
+				opts,
+				provider.WithAnthropicOptions(
+					provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
+				),
+			)
+		}
+		// TODO: Add BaseURL support for Anthropic when available
+		
+	case models.ProviderGemini:
+		geminiOpts := []provider.GeminiOption{}
+		
+		// Add BaseURL if configured
+		if providerCfg.BaseURL != "" {
+			geminiOpts = append(geminiOpts, provider.WithGeminiBaseURL(providerCfg.BaseURL))
+		}
+		
+		// Add Headers if configured
+		if len(providerCfg.Headers) > 0 {
+			geminiOpts = append(geminiOpts, provider.WithGeminiExtraHeaders(providerCfg.Headers))
+		}
+		
+		if len(geminiOpts) > 0 {
+			opts = append(opts, provider.WithGeminiOptions(geminiOpts...))
+		}
 	}
 	agentProvider, err := provider.NewProvider(
 		model.Provider,
