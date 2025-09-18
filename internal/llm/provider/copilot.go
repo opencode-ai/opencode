@@ -247,9 +247,12 @@ func (c *copilotClient) convertMessages(messages []message.Message) (copilotMess
 }
 
 func (c *copilotClient) convertTools(tools []toolsPkg.BaseTool) []openai.ChatCompletionToolParam {
-	copilotTools := make([]openai.ChatCompletionToolParam, len(tools))
+	// Filter tools based on provider compatibility
+	providerName := string(c.providerOptions.model.Provider)
+	filteredTools := FilterToolsByProvider(tools, providerName)
 
-	for i, tool := range tools {
+	copilotTools := make([]openai.ChatCompletionToolParam, len(filteredTools))
+	for i, tool := range filteredTools {
 		info := tool.Info()
 		copilotTools[i] = openai.ChatCompletionToolParam{
 			Function: openai.FunctionDefinitionParam{
@@ -668,4 +671,3 @@ func WithCopilotBearerToken(bearerToken string) CopilotOption {
 		options.bearerToken = bearerToken
 	}
 }
-

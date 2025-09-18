@@ -35,10 +35,13 @@ type TokenUsage struct {
 }
 
 type ProviderResponse struct {
-	Content      string
-	ToolCalls    []message.ToolCall
-	Usage        TokenUsage
-	FinishReason message.FinishReason
+	Content           string
+	ReasoningContent  string // For xAI reasoning content (internal use)
+	ToolCalls         []message.ToolCall
+	Usage             TokenUsage
+	FinishReason      message.FinishReason
+	SystemFingerprint string   // For tracking xAI backend configuration changes
+	Citations         []string // For Live Search citations (xAI)
 }
 
 type ProviderEvent struct {
@@ -69,6 +72,7 @@ type providerClientOptions struct {
 	geminiOptions    []GeminiOption
 	bedrockOptions   []BedrockOption
 	copilotOptions   []CopilotOption
+	xaiOptions       []XAIOption
 }
 
 type ProviderClientOption func(*providerClientOptions)
@@ -145,12 +149,9 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderXAI:
-		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL("https://api.x.ai/v1"),
-		)
-		return &baseProvider[OpenAIClient]{
+		return &baseProvider[XAIClient]{
 			options: clientOptions,
-			client:  newOpenAIClient(clientOptions),
+			client:  newXAIClient(clientOptions),
 		}, nil
 	case models.ProviderLocal:
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
@@ -243,5 +244,11 @@ func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 func WithCopilotOptions(copilotOptions ...CopilotOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.copilotOptions = copilotOptions
+	}
+}
+
+func WithXAIOptions(xaiOptions ...XAIOption) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.xaiOptions = xaiOptions
 	}
 }

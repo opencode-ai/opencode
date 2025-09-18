@@ -11,6 +11,8 @@ import (
 	"github.com/opencode-ai/opencode/internal/session"
 )
 
+// CoderAgentTools returns the complete set of tools available to the coder agent.
+// This includes file manipulation, code search, LSP integration, and web search capabilities.
 func CoderAgentTools(
 	permissions permission.Service,
 	sessions session.Service,
@@ -19,25 +21,32 @@ func CoderAgentTools(
 	lspClients map[string]*lsp.Client,
 ) []tools.BaseTool {
 	ctx := context.Background()
-	otherTools := GetMcpTools(ctx, permissions)
-	if len(lspClients) > 0 {
-		otherTools = append(otherTools, tools.NewDiagnosticsTool(lspClients))
+
+	// Base tools available to all coder agents
+	baseTools := []tools.BaseTool{
+		tools.NewBashTool(permissions),
+		tools.NewEditTool(lspClients, permissions, history),
+		tools.NewFetchTool(permissions),
+		tools.NewGlobTool(),
+		tools.NewGrepTool(),
+		tools.NewLsTool(),
+		tools.NewSourcegraphTool(),
+		tools.NewViewTool(lspClients),
+		tools.NewPatchTool(lspClients, permissions, history),
+		tools.NewWriteTool(lspClients, permissions, history),
+		NewAgentTool(sessions, messages, lspClients),
+		&tools.WebSearchTool{}, // Enables web search for compatible providers (e.g., xAI)
 	}
-	return append(
-		[]tools.BaseTool{
-			tools.NewBashTool(permissions),
-			tools.NewEditTool(lspClients, permissions, history),
-			tools.NewFetchTool(permissions),
-			tools.NewGlobTool(),
-			tools.NewGrepTool(),
-			tools.NewLsTool(),
-			tools.NewSourcegraphTool(),
-			tools.NewViewTool(lspClients),
-			tools.NewPatchTool(lspClients, permissions, history),
-			tools.NewWriteTool(lspClients, permissions, history),
-			NewAgentTool(sessions, messages, lspClients),
-		}, otherTools...,
-	)
+
+	// Add MCP tools if available
+	mcpTools := GetMcpTools(ctx, permissions)
+
+	// Add diagnostics tool if LSP clients are configured
+	if len(lspClients) > 0 {
+		mcpTools = append(mcpTools, tools.NewDiagnosticsTool(lspClients))
+	}
+
+	return append(baseTools, mcpTools...)
 }
 
 func TaskAgentTools(lspClients map[string]*lsp.Client) []tools.BaseTool {

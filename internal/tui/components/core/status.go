@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -72,10 +73,19 @@ func (m statusCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 var helpWidget = ""
 
+// getHelpKeyDisplay returns the primary help key for the current OS
+func getHelpKeyDisplay() string {
+	if runtime.GOOS == "darwin" {
+		return "ctrl+h"
+	}
+	return "ctrl+?"
+}
+
 // getHelpWidget returns the help widget with current theme colors
 func getHelpWidget() string {
 	t := theme.CurrentTheme()
-	helpText := "ctrl+? help"
+	// Use the correct help key for the current OS
+	helpText := getHelpKeyDisplay() + " help"
 
 	return styles.Padded().
 		Background(t.TextMuted()).

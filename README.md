@@ -29,9 +29,11 @@ OpenCode is a Go-based CLI application that brings AI assistance to your termina
 ## Features
 
 - **Interactive TUI**: Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a smooth terminal experience
-- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Groq, Azure OpenAI, and OpenRouter
+- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Groq, Azure OpenAI, xAI, and OpenRouter
 - **Session Management**: Save and manage multiple conversation sessions
 - **Tool Integration**: AI can execute commands, search files, and modify code
+- **Image Recognition**: Support for analyzing images with vision-enabled models (xAI Grok)
+- **Web Search**: Real-time web search capabilities with supported models
 - **Vim-like Editor**: Integrated editor with text input capabilities
 - **Persistent Storage**: SQLite database for storing conversations and sessions
 - **LSP Integration**: Language Server Protocol support for code intelligence
@@ -111,6 +113,7 @@ You can configure OpenCode using environment variables:
 | `VERTEXAI_PROJECT`         | For Google Cloud VertexAI (Gemini)                                               |
 | `VERTEXAI_LOCATION`        | For Google Cloud VertexAI (Gemini)                                               |
 | `GROQ_API_KEY`             | For Groq models                                                                  |
+| `XAI_API_KEY`              | For xAI Grok models                                                              |
 | `AWS_ACCESS_KEY_ID`        | For AWS Bedrock (Claude)                                                         |
 | `AWS_SECRET_ACCESS_KEY`    | For AWS Bedrock (Claude)                                                         |
 | `AWS_REGION`               | For AWS Bedrock (Claude)                                                         |
@@ -249,6 +252,26 @@ OpenCode supports a variety of AI models from different providers:
 - Gemini 2.5 Flash
 - Gemini 2.0 Flash
 - Gemini 2.0 Flash Lite
+
+### xAI
+
+- Grok 4 (grok-4-0709) - Most capable, with internal reasoning
+- Grok 3 (grok-3) - Advanced model (no reasoning support)
+- Grok 3 Fast (grok-3-fast) - Optimized for speed (no reasoning support)
+- Grok 3 Mini (grok-3-mini) - Smaller model with reasoning_effort support
+- Grok 3 Mini Fast (grok-3-mini-fast) - Fastest with reasoning_effort support
+- Grok 2 (grok-2-1212) - General purpose (no reasoning support)
+- Grok 2 Vision (grok-2-vision-1212) - Vision understanding (no reasoning support)
+- Grok 2 Image (grok-2-image-1212) - Image generation model
+
+**Special Features:**
+- **Web Search**: All xAI models support live web search for current information
+- **Reasoning Support** (verified via API):
+  - Grok 4 (grok-4-0709): Has internal reasoning capabilities but does NOT expose reasoning_content or accept reasoningEffort parameter
+  - Grok 3 Mini models: Support `reasoningEffort` parameter (only "low" or "high", not "medium")
+  - Grok 2 models, Grok 3/3-fast: No reasoning support
+- **Vision Support**: grok-2-vision-1212 supports image understanding
+- **Image Generation**: grok-2-image-1212 supports image generation
 
 ### AWS Bedrock
 
@@ -424,6 +447,7 @@ OpenCode's AI assistant has access to various tools to help with coding tasks:
 | `fetch`       | Fetch data from URLs                   | `url` (required), `format` (required), `timeout` (optional)                               |
 | `sourcegraph` | Search code across public repositories | `query` (required), `count` (optional), `context_window` (optional), `timeout` (optional) |
 | `agent`       | Run sub-tasks with the AI agent        | `prompt` (required)                                                                       |
+| `web_search`  | Search the web (xAI models only)       | `query` (required) - Note: Automatically used by xAI models when needed                   |
 
 ## Architecture
 

@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/models"
+	"github.com/opencode-ai/opencode/internal/llm/provider"
 	"github.com/opencode-ai/opencode/internal/tui/layout"
 	"github.com/opencode-ai/opencode/internal/tui/styles"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
@@ -208,7 +209,14 @@ func (m *modelDialogCmp) View() string {
 			itemStyle = itemStyle.Background(t.Primary()).
 				Foreground(t.Background()).Bold(true)
 		}
-		modelItems = append(modelItems, itemStyle.Render(m.models[i].Name))
+
+		// Add vision indicator for models that support images
+		modelName := m.models[i].Name
+		if m.models[i].SupportsAttachments && provider.IsVisionModel(string(m.models[i].ID)) {
+			modelName += " 👁" // Eye emoji to indicate vision support
+		}
+
+		modelItems = append(modelItems, itemStyle.Render(modelName))
 	}
 
 	scrollIndicator := m.getScrollIndicators(maxDialogWidth)

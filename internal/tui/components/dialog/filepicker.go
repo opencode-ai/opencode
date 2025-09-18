@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/opencode-ai/opencode/internal/app"
 	"github.com/opencode-ai/opencode/internal/config"
+	"github.com/opencode-ai/opencode/internal/llm/provider"
 	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/message"
 	"github.com/opencode-ai/opencode/internal/tui/image"
@@ -234,13 +235,21 @@ func (f *filepickerCmp) addAttachmentToMessage() (tea.Model, tea.Cmd) {
 		return f, nil
 	}
 
-	isFileLarge, err := image.ValidateFileSize(selectedFilePath, maxAttachmentSize)
+	// Check if current model is xAI to apply specific size limit
+	cfg := config.Get()
+	modelInfo := GetSelectedModel(cfg)
+	maxSize := maxAttachmentSize // Default 5MB
+	if strings.HasPrefix(string(modelInfo.ID), "grok") {
+		maxSize = provider.MaxImageSize // xAI allows up to 20MB
+	}
+
+	isFileLarge, err := image.ValidateFileSize(selectedFilePath, maxSize)
 	if err != nil {
 		logging.ErrorPersist("unable to read the image")
 		return f, nil
 	}
 	if isFileLarge {
-		logging.ErrorPersist("file too large, max 5MB")
+		logging.ErrorPersist(fmt.Sprintf("file too large, max %.0fMB", float64(maxSize)/(1024*1024)))
 		return f, nil
 	}
 
@@ -254,6 +263,14 @@ func (f *filepickerCmp) addAttachmentToMessage() (tea.Model, tea.Cmd) {
 	mimeType := http.DetectContentType(content[:mimeBufferSize])
 	fileName := filepath.Base(selectedFilePath)
 	attachment := message.Attachment{FilePath: selectedFilePath, FileName: fileName, MimeType: mimeType, Content: content}
+
+	// Additional xAI-specific validation
+	if strings.HasPrefix(string(modelInfo.ID), "grok") {
+		if err := provider.ValidateImageAttachment(attachment); err != nil {
+			logging.ErrorPersist(fmt.Sprintf("Invalid image: %v", err))
+			return f, nil
+		}
+	}
 	f.selectedFile = ""
 	return f, util.CmdHandler(AttachmentAddedMsg{attachment})
 }

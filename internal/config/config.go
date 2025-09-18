@@ -45,15 +45,32 @@ const (
 
 // Agent defines configuration for different LLM models and their token limits.
 type Agent struct {
-	Model           models.ModelID `json:"model"`
-	MaxTokens       int64          `json:"maxTokens"`
-	ReasoningEffort string         `json:"reasoningEffort"` // For openai models low,medium,heigh
+	Model              models.ModelID `json:"model"`
+	MaxTokens          int64          `json:"maxTokens"`
+	ReasoningEffort    string         `json:"reasoningEffort"`              // For openai models low,medium,heigh
+	DeferredCompletion *bool          `json:"deferredCompletion,omitempty"` // Override provider setting for this agent
 }
 
 // Provider defines configuration for an LLM provider.
 type Provider struct {
-	APIKey   string `json:"apiKey"`
-	Disabled bool   `json:"disabled"`
+	APIKey                string                    `json:"apiKey"`
+	Disabled              bool                      `json:"disabled"`
+	MaxConcurrentRequests int64                     `json:"maxConcurrentRequests,omitempty"` // For providers that support concurrent requests (e.g., xAI)
+	DeferredCompletion    *DeferredCompletionConfig `json:"deferredCompletion,omitempty"`    // For providers that support deferred completions (e.g., xAI)
+}
+
+// DeferredCompletionConfig defines settings for deferred completions
+type DeferredCompletionConfig struct {
+	Enabled      bool                      `json:"enabled"`                // Enable deferred completions
+	Timeout      string                    `json:"timeout,omitempty"`      // Timeout duration (e.g., "10m")
+	PollInterval string                    `json:"pollInterval,omitempty"` // Poll interval duration (e.g., "10s")
+	AutoEnable   *DeferredAutoEnableConfig `json:"autoEnable,omitempty"`   // Smart activation rules
+}
+
+// DeferredAutoEnableConfig defines rules for automatically enabling deferred completions
+type DeferredAutoEnableConfig struct {
+	ForModels        []string `json:"forModels,omitempty"`        // Enable for specific models
+	WhenTokensExceed int64    `json:"whenTokensExceed,omitempty"` // Enable when max tokens exceed this value
 }
 
 // Data defines storage configuration.
@@ -207,11 +224,10 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		cfg.Agents = make(map[AgentName]Agent)
 	}
 
-	// Override the max tokens for title agent
-	cfg.Agents[AgentTitle] = Agent{
-		Model:     cfg.Agents[AgentTitle].Model,
-		MaxTokens: 80,
-	}
+	// Override the max tokens for title agent to ensure concise titles
+	titleAgent := cfg.Agents[AgentTitle]
+	titleAgent.MaxTokens = 80
+	cfg.Agents[AgentTitle] = titleAgent
 	return cfg, nil
 }
 
@@ -351,10 +367,10 @@ func setProviderDefaults() {
 
 	// XAI configuration
 	if key := viper.GetString("providers.xai.apiKey"); strings.TrimSpace(key) != "" {
-		viper.SetDefault("agents.coder.model", models.XAIGrok3Beta)
-		viper.SetDefault("agents.summarizer.model", models.XAIGrok3Beta)
-		viper.SetDefault("agents.task.model", models.XAIGrok3Beta)
-		viper.SetDefault("agents.title.model", models.XAiGrok3MiniFastBeta)
+		viper.SetDefault("agents.coder.model", models.XAIGrok4)       // Most capable model with reasoning + vision
+		viper.SetDefault("agents.summarizer.model", models.XAIGrok3)  // Good balance for summarization
+		viper.SetDefault("agents.task.model", models.XAIGrok3Mini)    // Reasoning support for complex tasks
+		viper.SetDefault("agents.title.model", models.XAIGrok3MiniFast) // Fast + cheap for simple titles
 		return
 	}
 
@@ -471,6 +487,7 @@ func applyDefaultValues() {
 	}
 }
 
+// validateAgent ensures that the agent configuration is valid and supported.
 // It validates model IDs and providers, ensuring they are supported.
 func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	// Check if model exists
@@ -563,31 +580,12 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	}
 
 	// Validate reasoning effort for models that support reasoning
-	if model.CanReason && provider == models.ProviderOpenAI || provider == models.ProviderLocal {
-		if agent.ReasoningEffort == "" {
-			// Set default reasoning effort for models that support it
-			logging.Info("setting default reasoning effort for model that supports reasoning",
-				"agent", name,
-				"model", agent.Model)
-
-			// Update the agent with default reasoning effort
+	if model.CanReason && isReasoningProvider(provider) {
+		validatedEffort := validateReasoningEffort(agent.ReasoningEffort, provider, string(name), string(agent.Model))
+		if validatedEffort != agent.ReasoningEffort {
 			updatedAgent := cfg.Agents[name]
-			updatedAgent.ReasoningEffort = "medium"
+			updatedAgent.ReasoningEffort = validatedEffort
 			cfg.Agents[name] = updatedAgent
-		} else {
-			// Check if reasoning effort is valid (low, medium, high)
-			effort := strings.ToLower(agent.ReasoningEffort)
-			if effort != "low" && effort != "medium" && effort != "high" {
-				logging.Warn("invalid reasoning effort, setting to medium",
-					"agent", name,
-					"model", agent.Model,
-					"reasoning_effort", agent.ReasoningEffort)
-
-				// Update the agent with valid reasoning effort
-				updatedAgent := cfg.Agents[name]
-				updatedAgent.ReasoningEffort = "medium"
-				cfg.Agents[name] = updatedAgent
-			}
 		}
 	} else if !model.CanReason && agent.ReasoningEffort != "" {
 		// Model doesn't support reasoning but reasoning effort is set
@@ -927,6 +925,65 @@ func UpdateTheme(themeName string) error {
 	return updateCfgFile(func(config *Config) {
 		config.TUI.Theme = themeName
 	})
+}
+
+// isReasoningProvider checks if the provider supports reasoning effort configuration
+func isReasoningProvider(provider models.ModelProvider) bool {
+	return provider == models.ProviderOpenAI ||
+		provider == models.ProviderLocal ||
+		provider == models.ProviderXAI
+}
+
+// validateReasoningEffort validates and potentially adjusts the reasoning effort
+// based on provider-specific constraints
+func validateReasoningEffort(effort string, provider models.ModelProvider, agentName, modelName string) string {
+	if effort == "" {
+		// Set default reasoning effort
+		defaultEffort := "medium"
+		if provider == models.ProviderXAI {
+			defaultEffort = "high" // xAI doesn't support "medium"
+		}
+		logging.Info("setting default reasoning effort",
+			"agent", agentName,
+			"model", modelName,
+			"default", defaultEffort)
+		return defaultEffort
+	}
+
+	// Normalize to lowercase
+	normalizedEffort := strings.ToLower(effort)
+
+	// Provider-specific validation
+	if provider == models.ProviderXAI {
+		// xAI only supports "low" and "high"
+		switch normalizedEffort {
+		case "low", "high":
+			return normalizedEffort
+		case "medium":
+			logging.Info("xAI only supports low/high reasoning effort, mapping medium to high",
+				"agent", agentName,
+				"model", modelName)
+			return "high"
+		default:
+			logging.Warn("invalid reasoning effort for xAI, using high",
+				"agent", agentName,
+				"model", modelName,
+				"provided", effort)
+			return "high"
+		}
+	}
+
+	// Standard validation for other providers
+	switch normalizedEffort {
+	case "low", "medium", "high":
+		return normalizedEffort
+	default:
+		logging.Warn("invalid reasoning effort, using medium",
+			"agent", agentName,
+			"model", modelName,
+			"provided", effort)
+		return "medium"
+	}
 }
 
 // Tries to load Github token from all possible locations

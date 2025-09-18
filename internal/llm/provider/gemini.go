@@ -132,11 +132,15 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 	return history
 }
 
-func (g *geminiClient) convertTools(tools []tools.BaseTool) []*genai.Tool {
-	geminiTool := &genai.Tool{}
-	geminiTool.FunctionDeclarations = make([]*genai.FunctionDeclaration, 0, len(tools))
+func (g *geminiClient) convertTools(inputTools []tools.BaseTool) []*genai.Tool {
+	// Filter tools based on provider compatibility
+	providerName := string(g.providerOptions.model.Provider)
+	filteredTools := FilterToolsByProvider(inputTools, providerName)
 
-	for _, tool := range tools {
+	geminiTool := &genai.Tool{}
+	geminiTool.FunctionDeclarations = make([]*genai.FunctionDeclaration, 0, len(filteredTools))
+
+	for _, tool := range filteredTools {
 		info := tool.Info()
 		declaration := &genai.FunctionDeclaration{
 			Name:        info.Name,
@@ -225,7 +229,11 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 					content = string(part.Text)
 				case part.FunctionCall != nil:
 					id := "call_" + uuid.New().String()
-					args, _ := json.Marshal(part.FunctionCall.Args)
+					args, err := json.Marshal(part.FunctionCall.Args)
+					if err != nil {
+						logging.Error("Failed to marshal function call args", "error", err, "function", part.FunctionCall.Name)
+						args = []byte("{}")
+					}
 					toolCalls = append(toolCalls, message.ToolCall{
 						ID:       id,
 						Name:     part.FunctionCall.Name,
@@ -274,7 +282,17 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
 	}
-	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, config, history)
+	chat, err := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, config, history)
+	if err != nil {
+		eventChan := make(chan ProviderEvent, 1)
+		go func() {
+			defer close(eventChan)
+			eventChan <- ProviderEvent{
+				Error: fmt.Errorf("failed to create Gemini chat: %w", err),
+			}
+		}()
+		return eventChan
+	}
 
 	attempts := 0
 	eventChan := make(chan ProviderEvent)
@@ -337,7 +355,11 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 							}
 						case part.FunctionCall != nil:
 							id := "call_" + uuid.New().String()
-							args, _ := json.Marshal(part.FunctionCall.Args)
+							args, err := json.Marshal(part.FunctionCall.Args)
+							if err != nil {
+								logging.Error("Failed to marshal function call args", "error", err, "function", part.FunctionCall.Name)
+								args = []byte("{}")
+							}
 							newCall := message.ToolCall{
 								ID:       id,
 								Name:     part.FunctionCall.Name,
@@ -430,7 +452,11 @@ func (g *geminiClient) toolCalls(resp *genai.GenerateContentResponse) []message.
 		for _, part := range resp.Candidates[0].Content.Parts {
 			if part.FunctionCall != nil {
 				id := "call_" + uuid.New().String()
-				args, _ := json.Marshal(part.FunctionCall.Args)
+				args, err := json.Marshal(part.FunctionCall.Args)
+				if err != nil {
+					logging.Error("Failed to marshal function call args", "error", err, "function", part.FunctionCall.Name)
+					args = []byte("{}")
+				}
 				toolCalls = append(toolCalls, message.ToolCall{
 					ID:    id,
 					Name:  part.FunctionCall.Name,

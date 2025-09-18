@@ -19,10 +19,13 @@ import (
 )
 
 type openaiOptions struct {
-	baseURL         string
-	disableCache    bool
-	reasoningEffort string
-	extraHeaders    map[string]string
+	baseURL           string
+	disableCache      bool
+	reasoningEffort   string
+	extraHeaders      map[string]string
+	responseFormat    *openai.ChatCompletionNewParamsResponseFormatUnion
+	toolChoice        *openai.ChatCompletionToolChoiceOptionUnionParam
+	parallelToolCalls *bool
 }
 
 type OpenAIOption func(*openaiOptions)
@@ -125,10 +128,13 @@ func (o *openaiClient) convertMessages(messages []message.Message) (openaiMessag
 	return
 }
 
-func (o *openaiClient) convertTools(tools []tools.BaseTool) []openai.ChatCompletionToolParam {
-	openaiTools := make([]openai.ChatCompletionToolParam, len(tools))
+func (o *openaiClient) convertTools(inputTools []tools.BaseTool) []openai.ChatCompletionToolParam {
+	// Filter tools based on provider compatibility
+	providerName := string(o.providerOptions.model.Provider)
+	filteredTools := FilterToolsByProvider(inputTools, providerName)
 
-	for i, tool := range tools {
+	openaiTools := make([]openai.ChatCompletionToolParam, len(filteredTools))
+	for i, tool := range filteredTools {
 		info := tool.Info()
 		openaiTools[i] = openai.ChatCompletionToolParam{
 			Function: openai.FunctionDefinitionParam{
@@ -166,23 +172,66 @@ func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessagePar
 		Tools:    tools,
 	}
 
-	if o.providerOptions.model.CanReason == true {
+	if o.providerOptions.model.CanReason {
 		params.MaxCompletionTokens = openai.Int(o.providerOptions.maxTokens)
-		switch o.options.reasoningEffort {
-		case "low":
-			params.ReasoningEffort = shared.ReasoningEffortLow
-		case "medium":
-			params.ReasoningEffort = shared.ReasoningEffortMedium
-		case "high":
-			params.ReasoningEffort = shared.ReasoningEffortHigh
-		default:
-			params.ReasoningEffort = shared.ReasoningEffortMedium
+
+		// Determine if reasoning effort parameter should be applied
+		shouldApplyReasoningEffort := o.shouldApplyReasoningEffort()
+
+		if o.options.reasoningEffort != "" && shouldApplyReasoningEffort {
+			switch o.options.reasoningEffort {
+			case "low":
+				params.ReasoningEffort = shared.ReasoningEffortLow
+			case "medium":
+				// xAI only supports "low" and "high", map "medium" to "high"
+				if o.providerOptions.model.Provider == models.ProviderXAI {
+					params.ReasoningEffort = shared.ReasoningEffortHigh
+				} else {
+					params.ReasoningEffort = shared.ReasoningEffortMedium
+				}
+			case "high":
+				params.ReasoningEffort = shared.ReasoningEffortHigh
+			default:
+				// Map invalid values to appropriate defaults
+				if o.providerOptions.model.Provider == models.ProviderXAI {
+					params.ReasoningEffort = shared.ReasoningEffortHigh
+				} else {
+					params.ReasoningEffort = shared.ReasoningEffortMedium
+				}
+			}
 		}
 	} else {
 		params.MaxTokens = openai.Int(o.providerOptions.maxTokens)
 	}
 
+	// Add response format if configured
+	if o.options.responseFormat != nil {
+		params.ResponseFormat = *o.options.responseFormat
+	}
+
+	// Add tool choice if configured
+	if o.options.toolChoice != nil {
+		params.ToolChoice = *o.options.toolChoice
+	}
+
+	// Add parallel tool calls setting if configured
+	if o.options.parallelToolCalls != nil {
+		params.ParallelToolCalls = openai.Bool(*o.options.parallelToolCalls)
+	}
+
 	return params
+}
+
+// shouldApplyReasoningEffort determines if the reasoning_effort parameter should be applied
+// based on the model and provider. Some models support reasoning but do not accept
+// the reasoning_effort parameter (e.g., xAI's grok-4 has internal reasoning but doesn't accept the parameter).
+func (o *openaiClient) shouldApplyReasoningEffort() bool {
+	// xAI grok-4 has internal reasoning but does not accept reasoning_effort parameter
+	if o.providerOptions.model.Provider == models.ProviderXAI &&
+		o.providerOptions.model.ID == models.XAIGrok4 {
+		return false
+	}
+	return true
 }
 
 func (o *openaiClient) send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (response *ProviderResponse, err error) {
@@ -230,10 +279,11 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 		}
 
 		return &ProviderResponse{
-			Content:      content,
-			ToolCalls:    toolCalls,
-			Usage:        o.usage(*openaiResponse),
-			FinishReason: finishReason,
+			Content:           content,
+			ToolCalls:         toolCalls,
+			Usage:             o.usage(*openaiResponse),
+			FinishReason:      finishReason,
+			SystemFingerprint: openaiResponse.SystemFingerprint,
 		}, nil
 	}
 }
@@ -294,10 +344,11 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 				eventChan <- ProviderEvent{
 					Type: EventComplete,
 					Response: &ProviderResponse{
-						Content:      currentContent,
-						ToolCalls:    toolCalls,
-						Usage:        o.usage(acc.ChatCompletion),
-						FinishReason: finishReason,
+						Content:           currentContent,
+						ToolCalls:         toolCalls,
+						Usage:             o.usage(acc.ChatCompletion),
+						FinishReason:      finishReason,
+						SystemFingerprint: acc.ChatCompletion.SystemFingerprint,
 					},
 				}
 				close(eventChan)
@@ -411,15 +462,78 @@ func WithOpenAIDisableCache() OpenAIOption {
 	}
 }
 
+func WithOpenAIJSONMode() OpenAIOption {
+	return func(options *openaiOptions) {
+		options.responseFormat = &openai.ChatCompletionNewParamsResponseFormatUnion{
+			OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
+		}
+	}
+}
+
+func WithOpenAIJSONSchema(name string, schema interface{}) OpenAIOption {
+	return func(options *openaiOptions) {
+		options.responseFormat = &openai.ChatCompletionNewParamsResponseFormatUnion{
+			OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{
+				JSONSchema: shared.ResponseFormatJSONSchemaJSONSchemaParam{
+					Name:   name,
+					Schema: schema,
+					Strict: openai.Bool(true),
+				},
+			},
+		}
+	}
+}
+
 func WithReasoningEffort(effort string) OpenAIOption {
 	return func(options *openaiOptions) {
+		// If effort is empty, don't set it at all
+		if effort == "" {
+			options.reasoningEffort = ""
+			return
+		}
+
 		defaultReasoningEffort := "medium"
 		switch effort {
 		case "low", "medium", "high":
 			defaultReasoningEffort = effort
 		default:
-			logging.Warn("Invalid reasoning effort, using default: medium")
+			logging.Warn("Invalid reasoning effort, using default: medium", "provided", effort)
 		}
 		options.reasoningEffort = defaultReasoningEffort
+	}
+}
+
+func WithOpenAIToolChoice(choice string) OpenAIOption {
+	return func(options *openaiOptions) {
+		// Handle string-based tool choices: "auto", "required", "none"
+		switch choice {
+		case "auto", "required", "none":
+			options.toolChoice = &openai.ChatCompletionToolChoiceOptionUnionParam{
+				OfAuto: openai.String(choice),
+			}
+		default:
+			logging.Warn("Invalid tool choice, using default: auto", "provided", choice)
+			options.toolChoice = &openai.ChatCompletionToolChoiceOptionUnionParam{
+				OfAuto: openai.String("auto"),
+			}
+		}
+	}
+}
+
+func WithOpenAIToolChoiceFunction(functionName string) OpenAIOption {
+	return func(options *openaiOptions) {
+		options.toolChoice = &openai.ChatCompletionToolChoiceOptionUnionParam{
+			OfChatCompletionNamedToolChoice: &openai.ChatCompletionNamedToolChoiceParam{
+				Function: openai.ChatCompletionNamedToolChoiceFunctionParam{
+					Name: functionName,
+				},
+			},
+		}
+	}
+}
+
+func WithOpenAIParallelToolCalls(enabled bool) OpenAIOption {
+	return func(options *openaiOptions) {
+		options.parallelToolCalls = &enabled
 	}
 }

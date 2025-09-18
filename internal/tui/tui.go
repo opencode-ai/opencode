@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -41,6 +42,30 @@ const (
 	quitKey = "q"
 )
 
+// getOSModifier returns the appropriate modifier key for the current OS
+func getOSModifier() string {
+	if runtime.GOOS == "darwin" {
+		return "cmd"
+	}
+	return "ctrl"
+}
+
+// getHelpKeyLabel returns the appropriate help key label for the current OS
+func getHelpKeyLabel() string {
+	if runtime.GOOS == "darwin" {
+		return "ctrl+h"
+	}
+	return "ctrl+?"
+}
+
+// getHelpKeys returns the appropriate help key bindings for the current OS
+func getHelpKeys() []string {
+	if runtime.GOOS == "darwin" {
+		return []string{"cmd+shift+/", "cmd+?", "ctrl+h", "ctrl+?"}
+	}
+	return []string{"ctrl+shift+/", "ctrl+?", "ctrl+h"}
+}
+
 var keys = keyMap{
 	Logs: key.NewBinding(
 		key.WithKeys("ctrl+l"),
@@ -52,8 +77,8 @@ var keys = keyMap{
 		key.WithHelp("ctrl+c", "quit"),
 	),
 	Help: key.NewBinding(
-		key.WithKeys("ctrl+_", "ctrl+h"),
-		key.WithHelp("ctrl+?", "toggle help"),
+		key.WithKeys(getHelpKeys()...),
+		key.WithHelp(getHelpKeyLabel(), "toggle help"),
 	),
 
 	SwitchSession: key.NewBinding(
@@ -81,8 +106,8 @@ var keys = keyMap{
 }
 
 var helpEsc = key.NewBinding(
-	key.WithKeys("?"),
-	key.WithHelp("?", "toggle help"),
+	key.WithKeys("?", "cmd+shift+/", "ctrl+shift+/", "cmd+?", "ctrl+?"),
+	key.WithHelp(getHelpKeyLabel(), "toggle help"),
 )
 
 var returnKey = key.NewBinding(
@@ -505,7 +530,7 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showModelDialog = false
 				return a, nil
 			}
-			if a.currentPage == page.ChatPage && !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showCommandDialog {
+			if !a.showQuit && !a.showPermissions && !a.showSessionDialog && !a.showCommandDialog {
 				a.showModelDialog = true
 				return a, nil
 			}
@@ -518,7 +543,7 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.themeDialog.Init()
 			}
 			return a, nil
-		case key.Matches(msg, returnKey) || key.Matches(msg):
+		case key.Matches(msg, returnKey):
 			if msg.String() == quitKey {
 				if a.currentPage == page.LogsPage {
 					return a, a.moveToPage(page.ChatPage)
@@ -550,6 +575,10 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, keys.Logs):
+			if a.currentPage == page.LogsPage {
+				// If already on logs page, switch back to chat
+				return a, a.moveToPage(page.ChatPage)
+			}
 			return a, a.moveToPage(page.LogsPage)
 		case key.Matches(msg, keys.Help):
 			if a.showQuit {
@@ -558,13 +587,11 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.showHelp = !a.showHelp
 			return a, nil
 		case key.Matches(msg, helpEsc):
-			if a.app.CoderAgent.IsBusy() {
-				if a.showQuit {
-					return a, nil
-				}
-				a.showHelp = !a.showHelp
+			if a.showQuit {
 				return a, nil
 			}
+			a.showHelp = !a.showHelp
+			return a, nil
 		case key.Matches(msg, keys.Filepicker):
 			a.showFilepicker = !a.showFilepicker
 			a.filepicker.ToggleFilepicker(a.showFilepicker)

@@ -28,6 +28,7 @@ const (
 	toolMessageType
 
 	maxResultHeight = 10
+	maxMessageLines = 100 // Limit very long messages to prevent display issues
 )
 
 type uiMessage struct {
@@ -39,8 +40,22 @@ type uiMessage struct {
 }
 
 func toMarkdown(content string, focused bool, width int) string {
+	// Ensure minimum width to prevent rendering issues
+	if width < 20 {
+		width = 80
+	}
+
+	// For very long content, use plain text to avoid markdown rendering issues
+	if len(content) > 3000 {
+		return content
+	}
+
 	r := styles.GetMarkdownRenderer(width)
-	rendered, _ := r.Render(content)
+	rendered, err := r.Render(content)
+	if err != nil {
+		// Fallback to plain content if markdown rendering fails
+		return content
+	}
 	return rendered
 }
 
@@ -135,6 +150,33 @@ func renderAssistantMessage(
 	t := theme.CurrentTheme()
 	baseStyle := styles.BaseStyle()
 
+	// Combine reasoning content and regular content if both are present
+	if thinkingContent != "" && content != "" {
+		// For very long reasoning content, truncate it more aggressively
+		if len(thinkingContent) > 2000 {
+			lines := strings.Split(thinkingContent, "\n")
+			if len(lines) > 20 {
+				thinkingContent = strings.Join(lines[:20], "\n") + "\n\n[Reasoning content truncated...]"
+			}
+		}
+		content = thinkingContent + "\n\n" + content
+	} else if thinkingContent != "" && content == "" {
+		// For standalone reasoning content, also truncate if very long
+		if len(thinkingContent) > 2000 {
+			lines := strings.Split(thinkingContent, "\n")
+			if len(lines) > 30 {
+				content = strings.Join(lines[:30], "\n") + "\n\n[Content truncated...]"
+			} else {
+				content = thinkingContent
+			}
+		} else {
+			content = thinkingContent
+		}
+	}
+
+	// Final truncation by line count to prevent display issues
+	content = truncateHeight(content, maxMessageLines)
+
 	// Add finish info if available
 	if finished {
 		switch finishData.Reason {
@@ -185,7 +227,16 @@ func renderAssistantMessage(
 		position++ // for the space
 	} else if thinking && thinkingContent != "" {
 		// Render the thinking content
-		content = renderMessage(thinkingContent, false, msg.ID == focusedUIMessageId, width)
+		content = renderMessage(thinkingContent, false, msg.ID == focusedUIMessageId, width, info...)
+		messages = append(messages, uiMessage{
+			ID:          msg.ID,
+			messageType: assistantMessageType,
+			position:    position,
+			height:      lipgloss.Height(content),
+			content:     content,
+		})
+		position += messages[0].height
+		position++ // for the space
 	}
 
 	for i, toolCall := range msg.ToolCalls() {

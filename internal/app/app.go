@@ -37,9 +37,18 @@ type App struct {
 	watcherCancelFuncs []context.CancelFunc
 	cancelFuncsMutex   sync.Mutex
 	watcherWG          sync.WaitGroup
+
+	// Runtime options (e.g., from CLI flags)
+	RuntimeOptions RuntimeOptions
 }
 
-func New(ctx context.Context, conn *sql.DB) (*App, error) {
+// RuntimeOptions contains runtime configuration options (e.g., from CLI flags)
+type RuntimeOptions struct {
+	DeferredEnabled bool
+	DeferredTimeout string
+}
+
+func New(ctx context.Context, conn *sql.DB, opts ...RuntimeOptions) (*App, error) {
 	q := db.New(conn)
 	sessions := session.NewService(q)
 	messages := message.NewService(q)
@@ -51,6 +60,11 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		History:     files,
 		Permissions: permission.NewPermissionService(),
 		LSPClients:  make(map[string]*lsp.Client),
+	}
+
+	// Apply runtime options if provided
+	if len(opts) > 0 {
+		app.RuntimeOptions = opts[0]
 	}
 
 	// Initialize theme based on configuration

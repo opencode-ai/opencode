@@ -67,6 +67,26 @@ func NewLsTool() BaseTool {
 	return &lsTool{}
 }
 
+// getWorkingDirectory safely gets the working directory, falling back to os.Getwd() if config is not loaded
+func getWorkingDirectory() string {
+	// Try config first, but handle panic if config not loaded
+	defer func() {
+		recover() // Silently recover from panic if config not loaded
+	}()
+	
+	if wd := config.WorkingDirectory(); wd != "" {
+		return wd
+	}
+	
+	// Fall back to current working directory
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	
+	// Last resort - return current directory
+	return "."
+}
+
 func (l *lsTool) Info() ToolInfo {
 	return ToolInfo{
 		Name:        LSToolName,
@@ -96,11 +116,12 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		// Try to get working directory from config, fall back to current working directory
+		searchPath = getWorkingDirectory()
 	}
 
 	if !filepath.IsAbs(searchPath) {
-		searchPath = filepath.Join(config.WorkingDirectory(), searchPath)
+		searchPath = filepath.Join(getWorkingDirectory(), searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {

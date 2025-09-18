@@ -26,7 +26,15 @@ var rootCmd = &cobra.Command{
 	Short: "Terminal-based AI assistant for software development",
 	Long: `OpenCode is a powerful terminal-based AI assistant that helps with software development tasks.
 It provides an interactive chat interface with AI capabilities, code analysis, and LSP integration
-to assist developers in writing, debugging, and understanding code directly from the terminal.`,
+to assist developers in writing, debugging, and understanding code directly from the terminal.
+
+Key Features:
+- Interactive AI chat with multiple model providers (OpenAI, Anthropic, xAI, etc.)
+- Code analysis and editing capabilities
+- LSP (Language Server Protocol) integration
+- Web search support for current information (xAI models)
+- File system operations and project navigation
+- Multi-turn conversations with context retention`,
 	Example: `
   # Run in interactive mode
   opencode
@@ -63,6 +71,8 @@ to assist developers in writing, debugging, and understanding code directly from
 		prompt, _ := cmd.Flags().GetString("prompt")
 		outputFormat, _ := cmd.Flags().GetString("output-format")
 		quiet, _ := cmd.Flags().GetBool("quiet")
+		deferred, _ := cmd.Flags().GetBool("deferred")
+		deferredTimeout, _ := cmd.Flags().GetString("deferred-timeout")
 
 		// Validate format option
 		if !format.IsValid(outputFormat) {
@@ -97,7 +107,13 @@ to assist developers in writing, debugging, and understanding code directly from
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		app, err := app.New(ctx, conn)
+		// Create runtime options from CLI flags
+		runtimeOpts := app.RuntimeOptions{
+			DeferredEnabled: deferred,
+			DeferredTimeout: deferredTimeout,
+		}
+
+		app, err := app.New(ctx, conn, runtimeOpts)
 		if err != nil {
 			logging.Error("Failed to create app: %v", err)
 			return err
@@ -301,6 +317,10 @@ func init() {
 
 	// Add quiet flag to hide spinner in non-interactive mode
 	rootCmd.Flags().BoolP("quiet", "q", false, "Hide spinner in non-interactive mode")
+
+	// Deferred completion flags
+	rootCmd.Flags().Bool("deferred", false, "Enable deferred completions for xAI models (useful for long-running requests)")
+	rootCmd.Flags().String("deferred-timeout", "10m", "Timeout for deferred completions (e.g., '5m', '30s')")
 
 	// Register custom validation for the format flag
 	rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

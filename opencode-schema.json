@@ -30,7 +30,7 @@
             "o4-mini",
             "azure.gpt-4.1-mini",
             "openrouter.o3",
-            "grok-3-beta",
+            "grok-3",
             "o3-mini",
             "qwen-qwq",
             "azure.o1",
@@ -54,15 +54,19 @@
             "azure.o3",
             "azure.gpt-4.5-preview",
             "openrouter.claude-3-opus",
-            "grok-3-mini-fast-beta",
+            "grok-3-mini-fast",
             "claude-4-sonnet",
             "azure.o4-mini",
-            "grok-3-fast-beta",
+            "grok-3-fast",
             "claude-3.5-sonnet",
             "azure.o1-mini",
             "openrouter.claude-3.7-sonnet",
             "openrouter.gpt-4.5-preview",
-            "grok-3-mini-beta",
+            "grok-3-mini",
+            "grok-4-0709",
+            "grok-2-1212",
+            "grok-2-vision-1212",
+            "grok-2-image-1212",
             "claude-3.7-sonnet",
             "gemini-2.0-flash",
             "openrouter.deepseek-r1-free",
@@ -100,6 +104,10 @@
             "high"
           ],
           "type": "string"
+        },
+        "deferredCompletion": {
+          "description": "Override provider's deferred completion setting for this agent",
+          "type": "boolean"
         }
       },
       "required": [
@@ -140,7 +148,7 @@
               "o4-mini",
               "azure.gpt-4.1-mini",
               "openrouter.o3",
-              "grok-3-beta",
+              "grok-3",
               "o3-mini",
               "qwen-qwq",
               "azure.o1",
@@ -164,15 +172,19 @@
               "azure.o3",
               "azure.gpt-4.5-preview",
               "openrouter.claude-3-opus",
-              "grok-3-mini-fast-beta",
+              "grok-3-mini-fast",
               "claude-4-sonnet",
               "azure.o4-mini",
-              "grok-3-fast-beta",
+              "grok-3-fast",
               "claude-3.5-sonnet",
               "azure.o1-mini",
               "openrouter.claude-3.7-sonnet",
               "openrouter.gpt-4.5-preview",
-              "grok-3-mini-beta",
+              "grok-3-mini",
+              "grok-4-0709",
+              "grok-2-1212",
+              "grok-2-vision-1212",
+              "grok-2-image-1212",
               "claude-3.7-sonnet",
               "gemini-2.0-flash",
               "openrouter.deepseek-r1-free",
@@ -210,6 +222,10 @@
               "high"
             ],
             "type": "string"
+          },
+          "deferredCompletion": {
+            "description": "Override provider's deferred completion setting for this agent",
+            "type": "boolean"
           }
         },
         "required": [
@@ -372,6 +388,49 @@
             "description": "Whether the provider is disabled",
             "type": "boolean"
           },
+          "maxConcurrentRequests": {
+            "description": "Maximum concurrent requests for providers that support it (e.g., xAI)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "deferredCompletion": {
+            "description": "Deferred completion configuration for providers that support it (e.g., xAI)",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "description": "Enable deferred completions",
+                "type": "boolean"
+              },
+              "timeout": {
+                "description": "Timeout duration (e.g., '10m', '30s')",
+                "type": "string",
+                "pattern": "^[0-9]+(ms|s|m|h)$"
+              },
+              "pollInterval": {
+                "description": "Poll interval duration (e.g., '10s', '500ms')",
+                "type": "string",
+                "pattern": "^[0-9]+(ms|s|m|h)$"
+              },
+              "autoEnable": {
+                "description": "Rules for automatically enabling deferred completions",
+                "type": "object",
+                "properties": {
+                  "forModels": {
+                    "description": "Enable for specific models",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "whenTokensExceed": {
+                    "description": "Enable when max tokens exceed this value",
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          },
           "provider": {
             "description": "Provider type",
             "enum": [
@@ -383,7 +442,8 @@
               "bedrock",
               "azure",
               "vertexai",
-              "copilot"
+              "copilot",
+              "xai"
             ],
             "type": "string"
           }
