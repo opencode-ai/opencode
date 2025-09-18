@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/opencode-ai/opencode/internal/config"
 )
 
 func TestLsTool_Info(t *testing.T) {
@@ -24,10 +25,14 @@ func TestLsTool_Info(t *testing.T) {
 }
 
 func TestLsTool_Run(t *testing.T) {
-	// Create a temporary directory for testing
+	// Initialize config for testing
 	tempDir, err := os.MkdirTemp("", "ls_tool_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
+	
+	// Load config with the temp directory as working directory
+	_, err = config.Load(tempDir, false)
+	require.NoError(t, err)
 
 	// Create a test directory structure
 	testDirs := []string{
@@ -183,21 +188,20 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("handles relative path", func(t *testing.T) {
-		// Save original working directory
-		origWd, err := os.Getwd()
+		// Test with a relative path within the temp directory
+		// Create a subdirectory for this test
+		subdir := filepath.Join(tempDir, "testsubdir")
+		err := os.MkdirAll(subdir, 0755)
 		require.NoError(t, err)
-		defer func() {
-			os.Chdir(origWd)
-		}()
 		
-		// Change to a directory above the temp directory
-		parentDir := filepath.Dir(tempDir)
-		err = os.Chdir(parentDir)
+		// Create a file in the subdirectory
+		testFile := filepath.Join(subdir, "testfile.txt")
+		err = os.WriteFile(testFile, []byte("test content"), 0644)
 		require.NoError(t, err)
 		
 		tool := NewLsTool()
 		params := LSParams{
-			Path: filepath.Base(tempDir),
+			Path: "testsubdir", // Relative to the config's working directory (tempDir)
 		}
 
 		paramsJSON, err := json.Marshal(params)
@@ -211,9 +215,8 @@ func TestLsTool_Run(t *testing.T) {
 		response, err := tool.Run(context.Background(), call)
 		require.NoError(t, err)
 		
-		// Should list the temp directory contents
-		assert.Contains(t, response.Content, "dir1")
-		assert.Contains(t, response.Content, "file1.txt")
+		// Should list the subdirectory contents
+		assert.Contains(t, response.Content, "testfile.txt")
 	})
 }
 

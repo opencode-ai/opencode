@@ -273,6 +273,9 @@ func setProviderDefaults() {
 	if apiKey := os.Getenv("XAI_API_KEY"); apiKey != "" {
 		viper.SetDefault("providers.xai.apiKey", apiKey)
 	}
+	if apiKey := os.Getenv("DEEPSEEK_API_KEY"); apiKey != "" {
+		viper.SetDefault("providers.deepseek.apiKey", apiKey)
+	}
 	if apiKey := os.Getenv("AZURE_OPENAI_ENDPOINT"); apiKey != "" {
 		// api-key may be empty when using Entra ID credentials – that's okay
 		viper.SetDefault("providers.azure.apiKey", os.Getenv("AZURE_OPENAI_API_KEY"))
@@ -355,6 +358,15 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.summarizer.model", models.XAIGrok3Beta)
 		viper.SetDefault("agents.task.model", models.XAIGrok3Beta)
 		viper.SetDefault("agents.title.model", models.XAiGrok3MiniFastBeta)
+		return
+	}
+
+	// DeepSeek configuration
+	if key := viper.GetString("providers.deepseek.apiKey"); strings.TrimSpace(key) != "" {
+		viper.SetDefault("agents.coder.model", models.DeepSeekChat)
+		viper.SetDefault("agents.summarizer.model", models.DeepSeekChat)
+		viper.SetDefault("agents.task.model", models.DeepSeekChat)
+		viper.SetDefault("agents.title.model", models.DeepSeekChat)
 		return
 	}
 
@@ -663,6 +675,8 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 		if hasVertexAICredentials() {
 			return "vertex-ai-credentials-available"
 		}
+	case models.ProviderDeepSeek:
+		return os.Getenv("DEEPSEEK_API_KEY")
 	}
 	return ""
 }

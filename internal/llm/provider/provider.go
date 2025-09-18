@@ -69,6 +69,7 @@ type providerClientOptions struct {
 	geminiOptions    []GeminiOption
 	bedrockOptions   []BedrockOption
 	copilotOptions   []CopilotOption
+	deepSeekOptions  []DeepSeekOption
 }
 
 type ProviderClientOption func(*providerClientOptions)
@@ -160,6 +161,11 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+	case models.ProviderDeepSeek:
+		return &baseProvider[DeepSeekClient]{
+			options: clientOptions,
+			client:  newDeepSeekClient(clientOptions),
+		}, nil
 	case models.ProviderMock:
 		// TODO: implement mock client for test
 		panic("not implemented")
@@ -243,5 +249,11 @@ func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 func WithCopilotOptions(copilotOptions ...CopilotOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.copilotOptions = copilotOptions
+	}
+}
+
+func WithDeepSeekOptions(deepSeekOptions ...DeepSeekOption) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.deepSeekOptions = deepSeekOptions
 	}
 }
