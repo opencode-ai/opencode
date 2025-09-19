@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/openai/openai-go"
@@ -18,6 +22,7 @@ import (
 	toolsPkg "github.com/opencode-ai/opencode/internal/llm/tools"
 	"github.com/opencode-ai/opencode/internal/logging"
 	"github.com/opencode-ai/opencode/internal/message"
+	"github.com/spf13/viper"
 )
 
 type copilotOptions struct {
@@ -52,7 +57,266 @@ func (c *copilotClient) isAnthropicModel() bool {
 	return false
 }
 
-// loadGitHubToken loads the GitHub OAuth token from the standard GitHub CLI/Copilot locations
+// GitHub OAuth device flow response
+type GitHubDeviceCodeResponse struct {
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+}
+
+// GitHub OAuth token response
+type GitHubTokenResponse struct {
+	// Standard OAuth fields 
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	Scope       string `json:"scope"`
+	
+	// For backward compatibility with any custom formats
+	Token string `json:"token,omitempty"`
+}
+
+// performDeviceCodeFlow initiates the GitHub device code flow and returns a GitHub token
+func (c *copilotClient) performDeviceCodeFlow() (string, error) {
+	// Step 1: Get a device code
+	data := url.Values{}
+	
+	// Use the official GitHub Copilot client ID
+	const copilotClientID = "Iv1.b507a08c87ecfe98"
+	data.Set("client_id", copilotClientID)
+	data.Set("scope", "user:email read:user copilot")
+	
+	// Using the exact URL and headers from VS Code Copilot extension
+	req, err := http.NewRequest("POST", "https://github.com/login/device/code", strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create device code request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "OpenCode/1.0")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to get device code: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("device code request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var deviceResp GitHubDeviceCodeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&deviceResp); err != nil {
+		return "", fmt.Errorf("failed to parse device code response: %w", err)
+	}
+
+	// Step 2: Print instructions for the user
+	fmt.Printf("\n🔑 GitHub Copilot Authentication Required\n\n")
+	fmt.Printf("1. Visit: %s\n", deviceResp.VerificationURI)
+	fmt.Printf("2. Enter code: %s\n\n", deviceResp.UserCode)
+	fmt.Printf("Waiting for authentication... (expires in %d seconds)\n", deviceResp.ExpiresIn)
+	fmt.Printf("Please complete authentication in your browser to continue.\n\n")
+
+	// Step 3: Poll for the token
+	tokenData := url.Values{}
+	tokenData.Set("client_id", copilotClientID)
+	tokenData.Set("device_code", deviceResp.DeviceCode)
+	tokenData.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+
+	// Add a slight delay before first poll
+	time.Sleep(2 * time.Second)
+
+	// Create a context with timeout based on expires_in
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(deviceResp.ExpiresIn)*time.Second)
+	defer cancel()
+
+	interval := deviceResp.Interval
+	if interval < 5 {
+		interval = 5 // Ensure minimum polling interval
+	}
+
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	defer ticker.Stop()
+
+	fmt.Printf("Waiting for authorization...\n")
+	maxPolls := 60 // Maximum polling attempts
+	pollCount := 0
+	
+	for {
+		select {
+		case <-ticker.C:
+			pollCount++
+			if pollCount > maxPolls {
+				return "", fmt.Errorf("maximum polling attempts reached, please try again")
+			}
+			
+			// Make a request to check if the user has authorized
+			tokenReq, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", 
+				strings.NewReader(tokenData.Encode()))
+			if err != nil {
+				return "", fmt.Errorf("failed to create token request: %w", err)
+			}
+
+			tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			tokenReq.Header.Set("User-Agent", "OpenCode/1.0")
+			tokenReq.Header.Set("Accept", "application/json")
+
+			tokenResp, err := c.httpClient.Do(tokenReq)
+			if err != nil {
+				return "", fmt.Errorf("failed token request: %w", err)
+			}
+			defer tokenResp.Body.Close()
+
+			// Read the full response body so we can log it and also re-analyze it
+			bodyBytes, err := io.ReadAll(tokenResp.Body)
+			if err != nil {
+				return "", fmt.Errorf("failed to read token response body: %w", err)
+			}
+			
+			if tokenResp.StatusCode == http.StatusOK {
+				// Log the raw response for debugging
+				logging.Debug("Token response body", "body", string(bodyBytes))
+				
+				// Check for empty or invalid responses
+				if len(bodyBytes) == 0 {
+					logging.Debug("Empty response body from GitHub")
+					continue // Continue polling
+				}
+				
+				// First try standard OAuth response format
+				var tokenResponse GitHubTokenResponse
+				if err := json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
+					logging.Debug("Failed to parse as standard OAuth format", "error", err)
+					
+					// Try alternative format with access_token field
+					var altResponse struct {
+						AccessToken string `json:"access_token"`
+						TokenType   string `json:"token_type"`
+						Scope       string `json:"scope"`
+					}
+					
+					if err := json.Unmarshal(bodyBytes, &altResponse); err != nil {
+						logging.Debug("Failed to parse in any format", "error", err)
+						continue // Continue polling instead of failing
+					}
+					
+					// Use the alternative format
+					tokenResponse.AccessToken = altResponse.AccessToken
+				}
+
+				// Check which token field was populated
+				var finalToken string
+				if tokenResponse.AccessToken != "" {
+					finalToken = tokenResponse.AccessToken
+				} else if tokenResponse.Token != "" {
+					finalToken = tokenResponse.Token
+				}
+				
+				// Final token validation
+				if finalToken == "" {
+					logging.Debug("No token found in response")
+					continue // Continue polling instead of failing
+				}
+				
+				if finalToken != "" {
+					fmt.Printf("Successfully authenticated with GitHub!\n")
+					
+					// Save token to standard locations
+					saveGitHubToken(finalToken)
+					
+					return finalToken, nil
+				} else {
+					// If we got a 200 but no access token, that's strange
+					logging.Error("Received HTTP 200 but no access token in response", "body", string(bodyBytes))
+					return "", fmt.Errorf("authentication response did not contain an access token")
+				}
+			} else if tokenResp.StatusCode == http.StatusBadRequest {
+				// Check for specific errors
+				var errorResp map[string]string
+				if err := json.Unmarshal(bodyBytes, &errorResp); err == nil {
+					if errorResp["error"] == "authorization_pending" {
+						// Still waiting for user to authorize - continue
+						continue
+					} else if errorResp["error"] == "slow_down" {
+						// Rate limiting - fail fast
+						return "", fmt.Errorf("GitHub rate limit detected, please try again in a few minutes")
+					} else if errorResp["error"] == "expired_token" {
+						return "", fmt.Errorf("device code expired, please try again")
+					}
+				}
+			}
+			
+			// Any other error
+			return "", fmt.Errorf("token request failed with status %d: %s", 
+				tokenResp.StatusCode, string(bodyBytes))
+
+		case <-ctx.Done():
+			return "", fmt.Errorf("authentication timed out after %d seconds", deviceResp.ExpiresIn)
+		}
+	}
+}
+
+// saveGitHubToken saves the GitHub token to the standard location for future use
+func saveGitHubToken(token string) {
+	// Only save if we have a token
+	if token == "" {
+		logging.Error("Cannot save empty GitHub token")
+		return
+	}
+	
+	// Get the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = os.Getenv("HOME") // Fallback to HOME environment variable
+		if homeDir == "" {
+			logging.Error("Failed to determine home directory")
+			return
+		}
+	}
+	
+	// Set config directory based on platform
+	var configDir string
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		configDir = xdgConfig
+	} else if runtime.GOOS == "windows" {
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			configDir = localAppData
+		} else {
+			configDir = filepath.Join(homeDir, "AppData", "Local")
+		}
+	} else {
+		configDir = filepath.Join(homeDir, ".config")
+	}
+
+	// Create the directory if it doesn't exist
+	copilotDir := filepath.Join(configDir, "github-copilot")
+	if err := os.MkdirAll(copilotDir, 0755); err != nil {
+		logging.Error("Failed to create github-copilot directory", "error", err)
+		return
+	}
+	
+	// Save to both files for maximum compatibility
+	
+	// 1. Save to hosts.json (VS Code format)
+	hostsFile := filepath.Join(copilotDir, "hosts.json")
+	hostsData := map[string]map[string]interface{}{
+		"github.com": {
+			"oauth_token": token,
+		},
+	}
+	hostsJSON, err := json.Marshal(hostsData)
+	if err == nil {
+		if err := os.WriteFile(hostsFile, hostsJSON, 0600); err != nil {
+			logging.Error("Failed to write hosts.json", "error", err)
+		}
+	}
+	
+	// Set environment variables for immediate use (only GITHUB_COPILOT_TOKEN)
+	os.Setenv("GITHUB_COPILOT_TOKEN", token)
+}
 
 // exchangeGitHubToken exchanges a GitHub token for a Copilot bearer token
 func (c *copilotClient) exchangeGitHubToken(githubToken string) (string, error) {
@@ -106,25 +370,63 @@ func newCopilotClient(opts providerClientOptions) CopilotClient {
 		// Try to get GitHub token from multiple sources
 		var githubToken string
 
-		// 1. Environment variable
-		githubToken = os.Getenv("GITHUB_TOKEN")
+		// 1. Check GITHUB_COPILOT_TOKEN environment variable first
+		if token := os.Getenv("GITHUB_COPILOT_TOKEN"); token != "" {
+			githubToken = token
+		}
 
 		// 2. API key from options
-		if githubToken == "" {
+		if githubToken == "" && opts.apiKey != "" {
 			githubToken = opts.apiKey
 		}
 
 		// 3. Standard GitHub CLI/Copilot locations
 		if githubToken == "" {
 			var err error
+			fmt.Printf("🔍 Looking for GitHub Copilot token in standard locations...\n")
 			githubToken, err = config.LoadGitHubToken()
 			if err != nil {
-				logging.Debug("Failed to load GitHub token from standard locations", "error", err)
+				// Check if we need to use device flow
+				if err.Error() == "no_copilot_token" && !viper.GetBool("non_interactive") && viper.GetString("prompt") == "" {
+					logging.Info("No GitHub token found, starting device code flow")
+					fmt.Printf("🔑 No GitHub token found, starting authentication flow...\n")
+					
+					// Create temporary client for auth flow
+					tempClient := &copilotClient{
+						providerOptions: opts,
+						options:         copilotOpts,
+						httpClient:      httpClient,
+					}
+					
+					var authErr error
+					githubToken, authErr = tempClient.performDeviceCodeFlow()
+					if authErr != nil {
+						logging.Error("Device code authentication failed", "error", authErr)
+						fmt.Printf("❌ Authentication failed: %v\n", authErr)
+						return &copilotClient{
+							providerOptions: opts,
+							options:         copilotOpts,
+							httpClient:      httpClient,
+						}
+					}
+					
+					// Double-check token after device flow
+					if githubToken != "" {
+						fmt.Printf("✅ Successfully obtained GitHub token\n")
+						// Set it directly in opts.apiKey
+						opts.apiKey = githubToken
+					}
+				} else {
+					logging.Debug("Failed to load GitHub token from standard locations", "error", err)
+					fmt.Printf("⚠️ Failed to load GitHub token: %v\n", err)
+				}
+			} else if githubToken != "" {
+				fmt.Printf("✅ Found existing GitHub token (length: %d)\n", len(githubToken))
 			}
 		}
 
 		if githubToken == "" {
-			logging.Error("GitHub token is required for Copilot provider. Set GITHUB_TOKEN environment variable, configure it in opencode.json, or ensure GitHub CLI/Copilot is properly authenticated.")
+			logging.Error("GitHub Copilot token is required for Copilot provider. Set GITHUB_COPILOT_TOKEN environment variable, configure it in opencode.json, or ensure GitHub Copilot is properly authenticated.")
 			return &copilotClient{
 				providerOptions: opts,
 				options:         copilotOpts,
@@ -141,14 +443,18 @@ func newCopilotClient(opts providerClientOptions) CopilotClient {
 
 		// Exchange GitHub token for bearer token
 		var err error
+		fmt.Printf("🔄 Exchanging GitHub token for Copilot bearer token...\n")
 		bearerToken, err = tempClient.exchangeGitHubToken(githubToken)
 		if err != nil {
 			logging.Error("Failed to exchange GitHub token for Copilot bearer token", "error", err)
+			fmt.Printf("❌ Failed to exchange GitHub token: %v\n", err)
 			return &copilotClient{
 				providerOptions: opts,
 				options:         copilotOpts,
 				httpClient:      httpClient,
 			}
+		} else if bearerToken != "" {
+			fmt.Printf("✅ Successfully obtained Copilot bearer token\n")
 		}
 	}
 
@@ -554,8 +860,8 @@ func (c *copilotClient) shouldRetry(attempts int, err error) (bool, int64, error
 		// Try to refresh the bearer token
 		var githubToken string
 
-		// 1. Environment variable
-		githubToken = os.Getenv("GITHUB_TOKEN")
+		// 1. Check GITHUB_COPILOT_TOKEN environment variable
+		githubToken = os.Getenv("GITHUB_COPILOT_TOKEN")
 
 		// 2. API key from options
 		if githubToken == "" {
