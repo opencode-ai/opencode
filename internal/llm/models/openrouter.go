@@ -22,6 +22,8 @@ const (
 	OpenRouterClaude37Sonnet ModelID = "openrouter.claude-3.7-sonnet"
 	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
 	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
+	OpenRouterClaude4Sonnet  ModelID = "openrouter.claude-sonnet-4"
+	OpenRouterClaude4Opus    ModelID = "openrouter.claude-opus-4"
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
 )
 
@@ -272,5 +274,33 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOutCached: 0,
 		ContextWindow:      163_840,
 		DefaultMaxTokens:   10000,
+	},
+	OpenRouterClaude4Sonnet: {
+		ID:                  OpenRouterClaude4Sonnet,
+		Name:                "OpenRouter – Claude 4 Sonnet",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "anthropic/claude-sonnet-4",
+		CostPer1MIn:         AnthropicModels[Claude4Sonnet].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Sonnet].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Sonnet].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Sonnet].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Sonnet].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Sonnet].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude4Sonnet].CanReason,
+		SupportsAttachments: AnthropicModels[Claude4Sonnet].SupportsAttachments,
+	},
+	OpenRouterClaude4Opus: {
+		ID:                  OpenRouterClaude4Opus,
+		Name:                "OpenRouter – Claude 4 Opus",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "anthropic/claude-opus-4",
+		CostPer1MIn:         AnthropicModels[Claude4Opus].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Opus].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Opus].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Opus].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Opus].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Opus].DefaultMaxTokens,
+		CanReason:           true,
+		SupportsAttachments: AnthropicModels[Claude4Opus].SupportsAttachments,
 	},
 }
