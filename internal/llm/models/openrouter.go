@@ -23,6 +23,7 @@ const (
 	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
 	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
+	OpenRouterGrok4          ModelID = "openrouter.grok-4"
 )
 
 var OpenRouterModels = map[ModelID]Model{
@@ -272,5 +273,18 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOutCached: 0,
 		ContextWindow:      163_840,
 		DefaultMaxTokens:   10000,
+	},
+	OpenRouterGrok4: {
+		ID:                 OpenRouterGrok4,
+		Name:               "OpenRouter – Grok 4",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "x-ai/grok-4",
+		CostPer1MIn:        3.0,
+		CostPer1MInCached:  0.75,
+		CostPer1MOut:       15.0,
+		CostPer1MOutCached: 0,
+		ContextWindow:      256_000,
+		DefaultMaxTokens:   16_000,
+		CanReason:          true,
 	},
 }
