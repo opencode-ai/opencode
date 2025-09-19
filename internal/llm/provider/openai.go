@@ -214,7 +214,7 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 					continue
 				}
 			}
-			return nil, retryErr
+			return nil, err
 		}
 
 		content := ""

@@ -12,6 +12,7 @@ import (
 	"github.com/opencode-ai/opencode/internal/app"
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/db"
+	customerrors "github.com/opencode-ai/opencode/internal/errors"
 	"github.com/opencode-ai/opencode/internal/format"
 	"github.com/opencode-ai/opencode/internal/llm/agent"
 	"github.com/opencode-ai/opencode/internal/logging"
@@ -284,6 +285,13 @@ func setupSubscriptions(app *app.App, parentCtx context.Context) (chan tea.Msg, 
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		// If the error is a configuration error, we want to print a more helpful message
+		if e, ok := err.(*customerrors.Error); ok {
+			if e.Code == customerrors.ErrNotFound {
+				fmt.Println("No valid provider available. Please configure a provider using 'opencode config'")
+				os.Exit(1)
+			}
+		}
 		os.Exit(1)
 	}
 }

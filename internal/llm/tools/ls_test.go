@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLsTool_Info(t *testing.T) {
@@ -24,9 +24,10 @@ func TestLsTool_Info(t *testing.T) {
 }
 
 func TestLsTool_Run(t *testing.T) {
+	config.Load(".", false)
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "ls_tool_test")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
 	// Create a test directory structure
@@ -57,14 +58,14 @@ func TestLsTool_Run(t *testing.T) {
 	for _, dir := range testDirs {
 		dirPath := filepath.Join(tempDir, dir)
 		err := os.MkdirAll(dirPath, 0755)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	// Create files
 	for _, file := range testFiles {
 		filePath := filepath.Join(tempDir, file)
 		err := os.WriteFile(filePath, []byte("test content"), 0644)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	t.Run("lists directory successfully", func(t *testing.T) {
@@ -74,7 +75,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		paramsJSON, err := json.Marshal(params)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		call := ToolCall{
 			Name:  LSToolName,
@@ -82,7 +83,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		
 		// Check that visible directories and files are included
 		assert.Contains(t, response.Content, "dir1")
@@ -107,7 +108,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		paramsJSON, err := json.Marshal(params)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		call := ToolCall{
 			Name:  LSToolName,
@@ -115,7 +116,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, response.Content, "path does not exist")
 	})
 
@@ -129,7 +130,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		paramsJSON, err := json.Marshal(params)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		call := ToolCall{
 			Name:  LSToolName,
@@ -137,7 +138,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		
 		// The response should either contain a valid directory listing or an error
 		// We'll just check that it's not empty
@@ -152,7 +153,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, response.Content, "error parsing parameters")
 	})
 
@@ -164,7 +165,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		paramsJSON, err := json.Marshal(params)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		call := ToolCall{
 			Name:  LSToolName,
@@ -172,7 +173,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		
 		// The output format is a tree, so we need to check for specific patterns
 		// Check that file1.txt is not directly mentioned
@@ -185,7 +186,7 @@ func TestLsTool_Run(t *testing.T) {
 	t.Run("handles relative path", func(t *testing.T) {
 		// Save original working directory
 		origWd, err := os.Getwd()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		defer func() {
 			os.Chdir(origWd)
 		}()
@@ -193,7 +194,7 @@ func TestLsTool_Run(t *testing.T) {
 		// Change to a directory above the temp directory
 		parentDir := filepath.Dir(tempDir)
 		err = os.Chdir(parentDir)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		
 		tool := NewLsTool()
 		params := LSParams{
@@ -201,7 +202,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		paramsJSON, err := json.Marshal(params)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		call := ToolCall{
 			Name:  LSToolName,
@@ -209,7 +210,7 @@ func TestLsTool_Run(t *testing.T) {
 		}
 
 		response, err := tool.Run(context.Background(), call)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		
 		// Should list the temp directory contents
 		assert.Contains(t, response.Content, "dir1")
@@ -316,7 +317,7 @@ func TestCreateFileTree(t *testing.T) {
 		}
 	}
 	
-	require.NotNil(t, dir1Node)
+	assert.NotNil(t, dir1Node)
 	assert.Equal(t, "directory", dir1Node.Type)
 	assert.Len(t, dir1Node.Children, 2) // file2.txt and subdir
 }
@@ -369,7 +370,7 @@ func TestPrintTree(t *testing.T) {
 func TestListDirectory(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "list_directory_test")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
 	// Create a test directory structure
@@ -391,19 +392,19 @@ func TestListDirectory(t *testing.T) {
 	for _, dir := range testDirs {
 		dirPath := filepath.Join(tempDir, dir)
 		err := os.MkdirAll(dirPath, 0755)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	// Create files
 	for _, file := range testFiles {
 		filePath := filepath.Join(tempDir, file)
 		err := os.WriteFile(filePath, []byte("test content"), 0644)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	t.Run("lists files with no limit", func(t *testing.T) {
 		files, truncated, err := listDirectory(tempDir, []string{}, 1000)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.False(t, truncated)
 		
 		// Check that visible files and directories are included
@@ -429,14 +430,14 @@ func TestListDirectory(t *testing.T) {
 
 	t.Run("respects limit and returns truncated flag", func(t *testing.T) {
 		files, truncated, err := listDirectory(tempDir, []string{}, 2)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.True(t, truncated)
 		assert.Len(t, files, 2)
 	})
 
 	t.Run("respects ignore patterns", func(t *testing.T) {
 		files, truncated, err := listDirectory(tempDir, []string{"*.txt"}, 1000)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.False(t, truncated)
 		
 		// Check that no .txt files are included

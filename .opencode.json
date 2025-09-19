@@ -4,5 +4,12 @@
     "gopls": {
       "command": "gopls"
     }
+  },
+  "mcpServers": {
+    "spec-server": {
+      "command": "spec-server",
+      "args": ["stdio"],
+      "disabled": false
+    }
   }
 }

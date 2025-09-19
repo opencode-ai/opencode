@@ -36,15 +36,19 @@ const (
 
 // Providers in order of popularity
 var ProviderPopularity = map[ModelProvider]int{
-	ProviderCopilot:    1,
-	ProviderAnthropic:  2,
-	ProviderOpenAI:     3,
-	ProviderGemini:     4,
-	ProviderGROQ:       5,
-	ProviderOpenRouter: 6,
-	ProviderBedrock:    7,
-	ProviderAzure:      8,
-	ProviderVertexAI:   9,
+	ProviderOllama:     1,
+	ProviderOpenRouter: 2,
+	ProviderGemini:     3,
+	ProviderCopilot:    4,
+	ProviderAnthropic:  5,
+	ProviderOpenAI:     6,
+	ProviderGROQ:       7,
+	ProviderBedrock:    8,
+	ProviderAzure:      9,
+	ProviderVertexAI:   10,
+	ProviderHuggingFace: 11,
+	ProviderReplicate: 12,
+	ProviderCohere:    13,
 }
 
 var SupportedModels = map[ModelID]Model{
@@ -95,4 +99,8 @@ func init() {
 	maps.Copy(SupportedModels, XAIModels)
 	maps.Copy(SupportedModels, VertexAIGeminiModels)
 	maps.Copy(SupportedModels, CopilotModels)
+	maps.Copy(SupportedModels, OllamaModels)
+	maps.Copy(SupportedModels, HuggingFaceModels)
+	maps.Copy(SupportedModels, ReplicateModels)
+	maps.Copy(SupportedModels, CohereModels)
 }

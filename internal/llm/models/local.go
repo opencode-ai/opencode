@@ -16,44 +16,63 @@ import (
 
 const (
 	ProviderLocal ModelProvider = "local"
-
-	localModelsPath        = "v1/models"
-	lmStudioBetaModelsPath = "api/v0/models"
 )
 
+var localProviders = []struct {
+	name         string
+	envVar       string
+	modelsPath   string
+	isBeta       bool
+}{
+	{
+		name:       "Ollama",
+		envVar:     "OLLAMA_ENDPOINT",
+		modelsPath: "/api/tags",
+	},
+	{
+		name:       "LMStudio",
+		envVar:     "LMSTUDIO_ENDPOINT",
+		modelsPath: "api/v0/models",
+		isBeta: true,
+	},
+	{
+		name: "Local",
+		envVar: "LOCAL_ENDPOINT",
+		modelsPath: "v1/models",
+	},
+}
+
 func init() {
-	if endpoint := os.Getenv("LOCAL_ENDPOINT"); endpoint != "" {
-		localEndpoint, err := url.Parse(endpoint)
-		if err != nil {
-			logging.Debug("Failed to parse local endpoint",
-				"error", err,
-				"endpoint", endpoint,
-			)
-			return
+	for _, provider := range localProviders {
+		if endpoint := os.Getenv(provider.envVar); endpoint != "" {
+			localEndpoint, err := url.Parse(endpoint)
+			if err != nil {
+				logging.Debug("Failed to parse local endpoint",
+					"error", err,
+					"endpoint", endpoint,
+				)
+				continue
+			}
+
+			load := func(url *url.URL, path string) []localModel {
+				url.Path = path
+				return listLocalModels(url.String(), provider.isBeta)
+			}
+
+			models := load(localEndpoint, provider.modelsPath)
+
+			if len(models) == 0 {
+				logging.Debug("No local models found",
+					"endpoint", endpoint,
+				)
+				continue
+			}
+
+			loadLocalModels(models, provider.name)
+
+			viper.SetDefault("providers.local.apiKey", "dummy")
+			ProviderPopularity[ProviderLocal] = 0
 		}
-
-		load := func(url *url.URL, path string) []localModel {
-			url.Path = path
-			return listLocalModels(url.String())
-		}
-
-		models := load(localEndpoint, lmStudioBetaModelsPath)
-
-		if len(models) == 0 {
-			models = load(localEndpoint, localModelsPath)
-		}
-
-		if len(models) == 0 {
-			logging.Debug("No local models found",
-				"endpoint", endpoint,
-			)
-			return
-		}
-
-		loadLocalModels(models)
-
-		viper.SetDefault("providers.local.apiKey", "dummy")
-		ProviderPopularity[ProviderLocal] = 0
 	}
 }
 
@@ -74,7 +93,7 @@ type localModel struct {
 	LoadedContextLength int64  `json:"loaded_context_length"`
 }
 
-func listLocalModels(modelsEndpoint string) []localModel {
+func listLocalModels(modelsEndpoint string, isBeta bool) []localModel {
 	res, err := http.Get(modelsEndpoint)
 	if err != nil {
 		logging.Debug("Failed to list local models",
@@ -104,9 +123,9 @@ func listLocalModels(modelsEndpoint string) []localModel {
 
 	var supportedModels []localModel
 	for _, model := range modelList.Data {
-		if strings.HasSuffix(modelsEndpoint, lmStudioBetaModelsPath) {
+		if isBeta {
 			if model.Object != "model" || model.Type != "llm" {
-				logging.Debug("Skipping unsupported LMStudio model",
+				logging.Debug("Skipping unsupported model",
 					"endpoint", modelsEndpoint,
 					"id", model.ID,
 					"object", model.Object,
@@ -123,9 +142,9 @@ func listLocalModels(modelsEndpoint string) []localModel {
 	return supportedModels
 }
 
-func loadLocalModels(models []localModel) {
+func loadLocalModels(models []localModel, providerName string) {
 	for i, m := range models {
-		model := convertLocalModel(m)
+		model := convertLocalModel(m, providerName)
 		SupportedModels[model.ID] = model
 
 		if i == 0 || m.State == "loaded" {
@@ -137,9 +156,9 @@ func loadLocalModels(models []localModel) {
 	}
 }
 
-func convertLocalModel(model localModel) Model {
+func convertLocalModel(model localModel, providerName string) Model {
 	return Model{
-		ID:                  ModelID("local." + model.ID),
+		ID:                  ModelID("local/" + providerName + "/" + model.ID),
 		Name:                friendlyModelName(model.ID),
 		Provider:            ProviderLocal,
 		APIModel:            model.ID,
