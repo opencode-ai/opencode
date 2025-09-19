@@ -77,11 +77,18 @@ func getHelpWidget() string {
 	t := theme.CurrentTheme()
 	helpText := "ctrl+? help"
 
-	return styles.Padded().
-		Background(t.TextMuted()).
-		Foreground(t.BackgroundDarker()).
-		Bold(true).
-		Render(helpText)
+	helpStyle := styles.Padded().Bold(true)
+
+	// In transparency mode, remove background
+	if theme.IsTransparentBackground() {
+		helpStyle = helpStyle.Foreground(t.TextMuted())
+	} else {
+		helpStyle = helpStyle.
+			Background(t.TextMuted()).
+			Foreground(t.BackgroundDarker())
+	}
+
+	return helpStyle.Render(helpText)
 }
 
 func formatTokensAndCost(tokens, contextWindow int64, cost float64) string {
@@ -128,35 +135,63 @@ func (m statusCmp) View() string {
 	if m.session.ID != "" {
 		totalTokens := m.session.PromptTokens + m.session.CompletionTokens
 		tokens := formatTokensAndCost(totalTokens, model.ContextWindow, m.session.Cost)
-		tokensStyle := styles.Padded().
-			Background(t.Text()).
-			Foreground(t.BackgroundSecondary())
+		tokensStyle := styles.Padded()
+		
+		// In transparency mode, remove background
+		if theme.IsTransparentBackground() {
+			tokensStyle = tokensStyle.Foreground(t.Text())
+		} else {
+			tokensStyle = tokensStyle.
+				Background(t.Text()).
+				Foreground(t.BackgroundSecondary())
+		}
+		
 		percentage := (float64(totalTokens) / float64(model.ContextWindow)) * 100
 		if percentage > 80 {
+			// Even in transparency mode, show warning background for high token usage
 			tokensStyle = tokensStyle.Background(t.Warning())
 		}
 		tokenInfoWidth = lipgloss.Width(tokens) + 2
 		status += tokensStyle.Render(tokens)
 	}
 
-	diagnostics := styles.Padded().
-		Background(t.BackgroundDarker()).
-		Render(m.projectDiagnostics())
+	diagnosticsStyle := styles.Padded()
+	
+	// In transparency mode, remove background
+	if theme.IsTransparentBackground() {
+		diagnosticsStyle = diagnosticsStyle.Foreground(t.Text())
+	} else {
+		diagnosticsStyle = diagnosticsStyle.Background(t.BackgroundDarker())
+	}
+	
+	diagnostics := diagnosticsStyle.Render(m.projectDiagnostics())
 
 	availableWidht := max(0, m.width-lipgloss.Width(helpWidget)-lipgloss.Width(m.model())-lipgloss.Width(diagnostics)-tokenInfoWidth)
 
 	if m.info.Msg != "" {
-		infoStyle := styles.Padded().
-			Foreground(t.Background()).
-			Width(availableWidht)
+		infoStyle := styles.Padded().Width(availableWidht)
 
-		switch m.info.Type {
-		case util.InfoTypeInfo:
-			infoStyle = infoStyle.Background(t.Info())
-		case util.InfoTypeWarn:
-			infoStyle = infoStyle.Background(t.Warning())
-		case util.InfoTypeError:
-			infoStyle = infoStyle.Background(t.Error())
+		if theme.IsTransparentBackground() {
+			// In transparent mode, use colored foreground on transparent background
+			switch m.info.Type {
+			case util.InfoTypeInfo:
+				infoStyle = infoStyle.Foreground(t.Info())
+			case util.InfoTypeWarn:
+				infoStyle = infoStyle.Foreground(t.Warning())
+			case util.InfoTypeError:
+				infoStyle = infoStyle.Foreground(t.Error())
+			}
+		} else {
+			// In non-transparent mode, use colored background with contrasting text
+			infoStyle = infoStyle.Foreground(t.Background())
+			switch m.info.Type {
+			case util.InfoTypeInfo:
+				infoStyle = infoStyle.Background(t.Info())
+			case util.InfoTypeWarn:
+				infoStyle = infoStyle.Background(t.Warning())
+			case util.InfoTypeError:
+				infoStyle = infoStyle.Background(t.Error())
+			}
 		}
 
 		infoWidth := availableWidht - 10
@@ -167,11 +202,18 @@ func (m statusCmp) View() string {
 		}
 		status += infoStyle.Render(msg)
 	} else {
-		status += styles.Padded().
-			Foreground(t.Text()).
-			Background(t.BackgroundSecondary()).
-			Width(availableWidht).
-			Render("")
+		emptyStyle := styles.Padded().Width(availableWidht)
+		
+		// In transparency mode, remove background
+		if theme.IsTransparentBackground() {
+			emptyStyle = emptyStyle.Foreground(t.Text())
+		} else {
+			emptyStyle = emptyStyle.
+				Foreground(t.Text()).
+				Background(t.BackgroundSecondary())
+		}
+		
+		status += emptyStyle.Render("")
 	}
 
 	status += diagnostics
@@ -193,10 +235,14 @@ func (m *statusCmp) projectDiagnostics() string {
 
 	// If any server is initializing, show that status
 	if initializing {
-		return lipgloss.NewStyle().
-			Background(t.BackgroundDarker()).
-			Foreground(t.Warning()).
-			Render(fmt.Sprintf("%s Initializing LSP...", styles.SpinnerIcon))
+		initStyle := lipgloss.NewStyle().Foreground(t.Warning())
+		
+		// In transparency mode, remove background
+		if !theme.IsTransparentBackground() {
+			initStyle = initStyle.Background(t.BackgroundDarker())
+		}
+		
+		return initStyle.Render(fmt.Sprintf("%s Initializing LSP...", styles.SpinnerIcon))
 	}
 
 	errorDiagnostics := []protocol.Diagnostic{}
@@ -227,31 +273,35 @@ func (m *statusCmp) projectDiagnostics() string {
 	diagnostics := []string{}
 
 	if len(errorDiagnostics) > 0 {
-		errStr := lipgloss.NewStyle().
-			Background(t.BackgroundDarker()).
-			Foreground(t.Error()).
-			Render(fmt.Sprintf("%s %d", styles.ErrorIcon, len(errorDiagnostics)))
+		errStyle := lipgloss.NewStyle().Foreground(t.Error())
+		if !theme.IsTransparentBackground() {
+			errStyle = errStyle.Background(t.BackgroundDarker())
+		}
+		errStr := errStyle.Render(fmt.Sprintf("%s %d", styles.ErrorIcon, len(errorDiagnostics)))
 		diagnostics = append(diagnostics, errStr)
 	}
 	if len(warnDiagnostics) > 0 {
-		warnStr := lipgloss.NewStyle().
-			Background(t.BackgroundDarker()).
-			Foreground(t.Warning()).
-			Render(fmt.Sprintf("%s %d", styles.WarningIcon, len(warnDiagnostics)))
+		warnStyle := lipgloss.NewStyle().Foreground(t.Warning())
+		if !theme.IsTransparentBackground() {
+			warnStyle = warnStyle.Background(t.BackgroundDarker())
+		}
+		warnStr := warnStyle.Render(fmt.Sprintf("%s %d", styles.WarningIcon, len(warnDiagnostics)))
 		diagnostics = append(diagnostics, warnStr)
 	}
 	if len(hintDiagnostics) > 0 {
-		hintStr := lipgloss.NewStyle().
-			Background(t.BackgroundDarker()).
-			Foreground(t.Text()).
-			Render(fmt.Sprintf("%s %d", styles.HintIcon, len(hintDiagnostics)))
+		hintStyle := lipgloss.NewStyle().Foreground(t.Text())
+		if !theme.IsTransparentBackground() {
+			hintStyle = hintStyle.Background(t.BackgroundDarker())
+		}
+		hintStr := hintStyle.Render(fmt.Sprintf("%s %d", styles.HintIcon, len(hintDiagnostics)))
 		diagnostics = append(diagnostics, hintStr)
 	}
 	if len(infoDiagnostics) > 0 {
-		infoStr := lipgloss.NewStyle().
-			Background(t.BackgroundDarker()).
-			Foreground(t.Info()).
-			Render(fmt.Sprintf("%s %d", styles.InfoIcon, len(infoDiagnostics)))
+		infoStyle := lipgloss.NewStyle().Foreground(t.Info())
+		if !theme.IsTransparentBackground() {
+			infoStyle = infoStyle.Background(t.BackgroundDarker())
+		}
+		infoStr := infoStyle.Render(fmt.Sprintf("%s %d", styles.InfoIcon, len(infoDiagnostics)))
 		diagnostics = append(diagnostics, infoStr)
 	}
 
@@ -277,10 +327,18 @@ func (m statusCmp) model() string {
 	}
 	model := models.SupportedModels[coder.Model]
 
-	return styles.Padded().
-		Background(t.Secondary()).
-		Foreground(t.Background()).
-		Render(model.Name)
+	modelStyle := styles.Padded()
+	
+	// In transparency mode, remove background
+	if theme.IsTransparentBackground() {
+		modelStyle = modelStyle.Foreground(t.Secondary())
+	} else {
+		modelStyle = modelStyle.
+			Background(t.Secondary()).
+			Foreground(t.Background())
+	}
+
+	return modelStyle.Render(model.Name)
 }
 
 func NewStatusCmp(lspClients map[string]*lsp.Client) StatusCmp {

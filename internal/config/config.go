@@ -71,7 +71,8 @@ type LSPConfig struct {
 
 // TUIConfig defines the configuration for the Terminal User Interface.
 type TUIConfig struct {
-	Theme string `json:"theme,omitempty"`
+	Theme                string `json:"theme,omitempty"`
+	TransparentBackground bool   `json:"transparentBackground,omitempty"`
 }
 
 // ShellConfig defines the configuration for the shell used by the bash tool.
@@ -231,6 +232,7 @@ func setDefaults(debug bool) {
 	viper.SetDefault("data.directory", defaultDataDirectory)
 	viper.SetDefault("contextPaths", defaultContextPaths)
 	viper.SetDefault("tui.theme", "opencode")
+	viper.SetDefault("tui.transparentBackground", false)
 	viper.SetDefault("autoCompact", true)
 
 	// Set default shell from environment or fallback to /bin/bash
@@ -926,6 +928,21 @@ func UpdateTheme(themeName string) error {
 	// Update the file config
 	return updateCfgFile(func(config *Config) {
 		config.TUI.Theme = themeName
+	})
+}
+
+// UpdateTransparentBackground updates the transparent background setting in the configuration.
+func UpdateTransparentBackground(enabled bool) error {
+	if cfg == nil {
+		return fmt.Errorf("config not loaded")
+	}
+
+	// Update the in-memory config
+	cfg.TUI.TransparentBackground = enabled
+
+	// Update the file config
+	return updateCfgFile(func(config *Config) {
+		config.TUI.TransparentBackground = enabled
 	})
 }
 

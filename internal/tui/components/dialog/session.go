@@ -153,10 +153,17 @@ func (s *sessionDialogCmp) View() string {
 		itemStyle := baseStyle.Width(maxWidth)
 
 		if i == s.selectedIdx {
-			itemStyle = itemStyle.
-				Background(t.Primary()).
-				Foreground(t.Background()).
-				Bold(true)
+			if theme.IsTransparentBackground() {
+				itemStyle = itemStyle.
+					Background(t.Background()).
+					Foreground(t.Primary()).
+					Bold(true)
+			} else {
+				itemStyle = itemStyle.
+					Background(t.Primary()).
+					Foreground(t.Background()).
+					Bold(true)
+			}
 		}
 
 		sessionItems = append(sessionItems, itemStyle.Padding(0, 1).Render(sess.Title))

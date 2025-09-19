@@ -76,6 +76,33 @@ type Theme interface {
 	SyntaxPunctuation() lipgloss.AdaptiveColor
 }
 
+// TransparentTheme wraps a Theme to provide transparent background variants
+type TransparentTheme struct {
+	Theme
+}
+
+// NewTransparentTheme creates a new transparent theme wrapper
+func NewTransparentTheme(theme Theme) *TransparentTheme {
+	return &TransparentTheme{Theme: theme}
+}
+
+// Override background methods to return transparent colors
+func (t *TransparentTheme) Background() lipgloss.AdaptiveColor {
+	return lipgloss.AdaptiveColor{Light: "", Dark: ""}
+}
+
+func (t *TransparentTheme) BackgroundSecondary() lipgloss.AdaptiveColor {
+	return lipgloss.AdaptiveColor{Light: "", Dark: ""}
+}
+
+func (t *TransparentTheme) BackgroundDarker() lipgloss.AdaptiveColor {
+	return lipgloss.AdaptiveColor{Light: "", Dark: ""}
+}
+
+func (t *TransparentTheme) DiffContextBg() lipgloss.AdaptiveColor {
+	return lipgloss.AdaptiveColor{Light: "", Dark: ""}
+}
+
 // BaseTheme provides a default implementation of the Theme interface
 // that can be embedded in concrete theme implementations.
 type BaseTheme struct {
