@@ -19,10 +19,8 @@ import (
 )
 
 type openaiOptions struct {
-	baseURL         string
 	disableCache    bool
 	reasoningEffort string
-	extraHeaders    map[string]string
 }
 
 type OpenAIOption func(*openaiOptions)
@@ -47,12 +45,11 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	if opts.apiKey != "" {
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
 	}
-	if openaiOpts.baseURL != "" {
-		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(openaiOpts.baseURL))
+	if opts.baseURL != "" {
+		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(opts.baseURL))
 	}
-
-	if openaiOpts.extraHeaders != nil {
-		for key, value := range openaiOpts.extraHeaders {
+	if opts.headers != nil {
+		for key, value := range opts.headers {
 			openaiClientOptions = append(openaiClientOptions, option.WithHeader(key, value))
 		}
 	}
@@ -390,18 +387,6 @@ func (o *openaiClient) usage(completion openai.ChatCompletion) TokenUsage {
 		OutputTokens:        completion.Usage.CompletionTokens,
 		CacheCreationTokens: 0, // OpenAI doesn't provide this directly
 		CacheReadTokens:     cachedTokens,
-	}
-}
-
-func WithOpenAIBaseURL(baseURL string) OpenAIOption {
-	return func(options *openaiOptions) {
-		options.baseURL = baseURL
-	}
-}
-
-func WithOpenAIExtraHeaders(headers map[string]string) OpenAIOption {
-	return func(options *openaiOptions) {
-		options.extraHeaders = headers
 	}
 }
 

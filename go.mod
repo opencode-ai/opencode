@@ -34,8 +34,16 @@ require (
 )
 
 require (
+	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
+	golang.org/x/oauth2 v0.25.0 // indirect
+	golang.org/x/time v0.8.0 // indirect
+	google.golang.org/api v0.215.0 // indirect
+)
+
+require (
 	cloud.google.com/go v0.116.0 // indirect
-	cloud.google.com/go/auth v0.13.0 // indirect
+	cloud.google.com/go/auth v0.13.0
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect

@@ -91,7 +91,7 @@ var AnthropicModels = map[ModelID]Model{
 		CostPer1MOutCached:  0.30,
 		CostPer1MOut:        15.0,
 		ContextWindow:       200000,
-		DefaultMaxTokens:    50000,
+		DefaultMaxTokens:    64000,
 		CanReason:           true,
 		SupportsAttachments: true,
 	},
@@ -105,7 +105,7 @@ var AnthropicModels = map[ModelID]Model{
 		CostPer1MOutCached:  1.50,
 		CostPer1MOut:        75.0,
 		ContextWindow:       200000,
-		DefaultMaxTokens:    4096,
+		DefaultMaxTokens:    32000,
 		SupportsAttachments: true,
 	},
 }

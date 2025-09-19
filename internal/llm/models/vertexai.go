@@ -6,6 +6,8 @@ const (
 	// Models
 	VertexAIGemini25Flash ModelID = "vertexai.gemini-2.5-flash"
 	VertexAIGemini25      ModelID = "vertexai.gemini-2.5"
+	VertexAISonnet4       ModelID = "vertexai.claude-sonnet-4"
+	VertexAIOpus4         ModelID = "vertexai.claude-opus-4"
 )
 
 var VertexAIGeminiModels = map[ModelID]Model{
@@ -34,5 +36,36 @@ var VertexAIGeminiModels = map[ModelID]Model{
 		ContextWindow:       GeminiModels[Gemini25].ContextWindow,
 		DefaultMaxTokens:    GeminiModels[Gemini25].DefaultMaxTokens,
 		SupportsAttachments: true,
+	},
+}
+
+var VertexAIAnthropicModels = map[ModelID]Model{
+	VertexAISonnet4: {
+		ID:                  VertexAISonnet4,
+		Name:                "VertexAI: Claude Sonnet 4",
+		Provider:            ProviderVertexAI,
+		APIModel:            "claude-sonnet-4",
+		CostPer1MIn:         AnthropicModels[Claude4Sonnet].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Sonnet].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Sonnet].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Sonnet].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Sonnet].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Sonnet].DefaultMaxTokens,
+		SupportsAttachments: AnthropicModels[Claude4Sonnet].SupportsAttachments,
+		CanReason:           AnthropicModels[Claude4Sonnet].CanReason,
+	},
+	VertexAIOpus4: {
+		ID:                  VertexAIOpus4,
+		Name:                "VertexAI: Claude Opus 4",
+		Provider:            ProviderVertexAI,
+		APIModel:            "claude-opus-4@20250514",
+		CostPer1MIn:         AnthropicModels[Claude4Opus].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Opus].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Opus].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Opus].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Opus].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Opus].DefaultMaxTokens,
+		SupportsAttachments: AnthropicModels[Claude4Opus].SupportsAttachments,
+		CanReason:           AnthropicModels[Claude4Opus].CanReason,
 	},
 }
