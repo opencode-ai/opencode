@@ -20,6 +20,7 @@ type Session struct {
 	Cost             float64
 	CreatedAt        int64
 	UpdatedAt        int64
+	Todos            string
 }
 
 type Service interface {
@@ -110,7 +111,8 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 			String: session.SummaryMessageID,
 			Valid:  session.SummaryMessageID != "",
 		},
-		Cost: session.Cost,
+		Cost:  session.Cost,
+		Todos: session.Todos,
 	})
 	if err != nil {
 		return Session{}, err
@@ -144,6 +146,7 @@ func (s service) fromDBItem(item db.Session) Session {
 		Cost:             item.Cost,
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
+		Todos:            item.Todos,
 	}
 }
 

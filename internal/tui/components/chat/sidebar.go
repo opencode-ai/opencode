@@ -96,6 +96,8 @@ func (m *sidebarCmp) View() string {
 				" ",
 				m.sessionSection(),
 				" ",
+				m.todoSection(),
+				" ",
 				lspsConfigured(m.width),
 				" ",
 				m.modifiedFiles(),
@@ -122,6 +124,124 @@ func (m *sidebarCmp) sessionSection() string {
 		sessionKey,
 		sessionValue,
 	)
+}
+
+func (m *sidebarCmp) todoSection() string {
+	t := theme.CurrentTheme()
+	baseStyle := styles.BaseStyle()
+
+	// Limit displayed TODO items to prevent performance issues
+	const maxDisplayItems = 20
+
+	count := m.getTodoCount()
+	title := baseStyle.
+		Width(m.width).
+		Foreground(t.Primary()).
+		Bold(true).
+		Render(fmt.Sprintf("TODO List (%d)", count))
+
+	// If no todos, show a placeholder message
+	if count == 0 {
+		message := "No TODO items"
+		return baseStyle.
+			Width(m.width).
+			Render(
+				lipgloss.JoinVertical(
+					lipgloss.Top,
+					title,
+					baseStyle.Foreground(t.TextMuted()).Render(message),
+				),
+			)
+	}
+
+	// Split todos by lines and render each item, limiting to maxDisplayItems
+	todoLines := strings.Split(m.session.Todos, "\n")
+	var filteredLines []string
+	for _, line := range todoLines {
+		if strings.TrimSpace(line) != "" {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	// Apply limit
+	displayLines := filteredLines
+	if len(filteredLines) > maxDisplayItems {
+		displayLines = filteredLines[:maxDisplayItems]
+	}
+
+	var todoViews []string
+	for _, line := range displayLines {
+		// Style different checkbox states
+		todoText := line
+		todoColor := t.Text()
+		style := baseStyle.Width(m.width)
+		
+		if strings.Contains(line, "- [x]") {
+			// Completed todos - muted and strikethrough
+			todoText = strings.Replace(line, "- [x]", "✓", 1)
+			todoColor = t.TextMuted()
+			style = style.Strikethrough(true)
+		} else if strings.Contains(line, "- [~]") {
+			// In-progress todos - highlighted
+			todoText = strings.Replace(line, "- [~]", "~", 1)
+			todoColor = t.Warning()
+		} else {
+			// Regular todos
+			todoText = strings.Replace(line, "- [ ]", "•", 1)
+		}
+		
+		// Handle priority indicators
+		if strings.Contains(todoText, " (!)") {
+			todoText = strings.Replace(todoText, " (!)", " ⚠", 1)
+			if !strings.Contains(line, "- [x]") {
+				todoColor = t.Error()
+			}
+		} else if strings.Contains(todoText, " (~)") {
+			todoText = strings.Replace(todoText, " (~)", " ~", 1)
+		}
+		
+		todoView := style.
+			Foreground(todoColor).
+			Render(todoText)
+		
+		todoViews = append(todoViews, todoView)
+	}
+
+	// Add overflow indicator if we have more items than displayed
+	if len(filteredLines) > maxDisplayItems {
+		overflowMsg := fmt.Sprintf("... and %d more items", len(filteredLines)-maxDisplayItems)
+		todoViews = append(todoViews, baseStyle.
+			Foreground(t.TextMuted()).
+			Render(overflowMsg))
+	}
+
+	return baseStyle.
+		Width(m.width).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				title,
+				lipgloss.JoinVertical(
+					lipgloss.Top,
+					todoViews...,
+				),
+			),
+		)
+}
+
+// Helper function to get TODO count
+func (m *sidebarCmp) getTodoCount() int {
+	if m.session.Todos == "" {
+		return 0
+	}
+	
+	count := 0
+	for _, line := range strings.Split(m.session.Todos, "\n") {
+		if strings.TrimSpace(line) != "" {
+			count++
+		}
+	}
+	return count
 }
 
 func (m *sidebarCmp) modifiedFile(filePath string, additions, removals int) string {
