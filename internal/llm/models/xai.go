@@ -7,6 +7,7 @@ const (
 	XAIGrok3MiniBeta     ModelID = "grok-3-mini-beta"
 	XAIGrok3FastBeta     ModelID = "grok-3-fast-beta"
 	XAiGrok3MiniFastBeta ModelID = "grok-3-mini-fast-beta"
+	XAIGrok40709         ModelID = "grok-4-0709"
 )
 
 var XAIModels = map[ModelID]Model{
@@ -56,6 +57,18 @@ var XAIModels = map[ModelID]Model{
 		CostPer1MOut:       4.0,
 		CostPer1MOutCached: 0,
 		ContextWindow:      131_072,
+		DefaultMaxTokens:   20_000,
+	},
+	XAIGrok40709: {
+		ID:                 XAIGrok40709,
+		Name:               "Grok 4 0709",
+		Provider:           ProviderXAI,
+		APIModel:           "grok-4-0709",
+		CostPer1MIn:        3.0,
+		CostPer1MInCached:  0.75,
+		CostPer1MOut:       15.0,
+		CostPer1MOutCached: 0.75,
+		ContextWindow:      256_000,
 		DefaultMaxTokens:   20_000,
 	},
 }

@@ -163,6 +163,10 @@ This is useful if you want to use a different shell than your default system she
     "openrouter": {
       "apiKey": "your-api-key",
       "disabled": false
+    },
+    "xai": {
+      "apiKey": "your-api-key",
+      "disabled": false
     }
   },
   "agents": {
@@ -275,6 +279,14 @@ OpenCode supports a variety of AI models from different providers:
 
 - Gemini 2.5
 - Gemini 2.5 Flash
+
+### XAI
+
+- Grok 3 Beta
+- Grok 3 Mini Beta
+- Grok 3 Fast Beta
+- Grok 3 Mini Fast Beta
+- Grok 4 0709
 
 ## Usage
 
