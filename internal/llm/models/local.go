@@ -22,7 +22,10 @@ const (
 )
 
 func init() {
-	if endpoint := os.Getenv("LOCAL_ENDPOINT"); endpoint != "" {
+	endpoint := os.Getenv("LOCAL_ENDPOINT")
+	apiKey := os.Getenv("LOCAL_API_KEY")
+
+	if endpoint != "" {
 		localEndpoint, err := url.Parse(endpoint)
 		if err != nil {
 			logging.Debug("Failed to parse local endpoint",
@@ -34,7 +37,7 @@ func init() {
 
 		load := func(url *url.URL, path string) []localModel {
 			url.Path = path
-			return listLocalModels(url.String())
+			return listLocalModels(url.String(), apiKey)
 		}
 
 		models := load(localEndpoint, lmStudioBetaModelsPath)
@@ -74,8 +77,23 @@ type localModel struct {
 	LoadedContextLength int64  `json:"loaded_context_length"`
 }
 
-func listLocalModels(modelsEndpoint string) []localModel {
-	res, err := http.Get(modelsEndpoint)
+
+func listLocalModels(modelsEndpoint string, apiKey string) []localModel {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", modelsEndpoint, nil)
+	if err != nil {
+		logging.Debug("Failed to create request for local models",
+			"error", err,
+			"endpoint", modelsEndpoint,
+		)
+		return []localModel{}
+	}
+
+	if apiKey != "" {
+		req.Header.Add("Authorization", "Bearer "+apiKey)
+	}
+
+	res, err := client.Do(req)
 	if err != nil {
 		logging.Debug("Failed to list local models",
 			"error", err,

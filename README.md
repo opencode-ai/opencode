@@ -118,6 +118,7 @@ You can configure OpenCode using environment variables:
 | `AZURE_OPENAI_API_KEY`     | For Azure OpenAI models (optional when using Entra ID)                           |
 | `AZURE_OPENAI_API_VERSION` | For Azure OpenAI models                                                          |
 | `LOCAL_ENDPOINT`           | For self-hosted models                                                           |
+| `LOCAL_API_KEY`            | For self-hosted models                                                           |
 | `SHELL`                    | Default shell to use (if not specified in config)                                |
 
 ### Shell Configuration
@@ -634,9 +635,11 @@ This is useful for developers who want to experiment with custom models.
 
 You can use a self-hosted model by setting the `LOCAL_ENDPOINT` environment variable.
 This will cause OpenCode to load and use the models from the specified endpoint.
+`LOCAL_API_KEY` can be empty, or set to your api key.
 
 ```bash
 LOCAL_ENDPOINT=http://localhost:1235/v1
+LOCAL_API_KEY=YOUR_API_KEY
 ```
 
 ### Configuring a self-hosted model
@@ -645,12 +648,11 @@ You can also configure a self-hosted model in the configuration file under the `
 
 ```json
 {
-  "agents": {
-    "coder": {
-      "model": "local.granite-3.3-2b-instruct@q8_0",
+  "task": {
+      "model": "local.o3",
+      "maxTokens": 100000,
       "reasoningEffort": "high"
     }
-  }
 }
 ```
 
