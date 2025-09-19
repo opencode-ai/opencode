@@ -29,7 +29,7 @@ OpenCode is a Go-based CLI application that brings AI assistance to your termina
 ## Features
 
 - **Interactive TUI**: Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a smooth terminal experience
-- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Groq, Azure OpenAI, and OpenRouter
+- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, Google Gemini, Amazon Bedrock, Groq, Azure OpenAI, and OpenRouter
 - **Session Management**: Save and manage multiple conversation sessions
 - **Tool Integration**: AI can execute commands, search files, and modify code
 - **Vim-like Editor**: Integrated editor with text input capabilities
@@ -111,9 +111,9 @@ You can configure OpenCode using environment variables:
 | `VERTEXAI_PROJECT`         | For Google Cloud VertexAI (Gemini)                                               |
 | `VERTEXAI_LOCATION`        | For Google Cloud VertexAI (Gemini)                                               |
 | `GROQ_API_KEY`             | For Groq models                                                                  |
-| `AWS_ACCESS_KEY_ID`        | For AWS Bedrock (Claude)                                                         |
-| `AWS_SECRET_ACCESS_KEY`    | For AWS Bedrock (Claude)                                                         |
-| `AWS_REGION`               | For AWS Bedrock (Claude)                                                         |
+| `AWS_ACCESS_KEY_ID`        | For Amazon Bedrock (Claude)                                                         |
+| `AWS_SECRET_ACCESS_KEY`    | For Amazon Bedrock (Claude)                                                         |
+| `AWS_REGION`               | For Amazon Bedrock (Claude)                                                         |
 | `AZURE_OPENAI_ENDPOINT`    | For Azure OpenAI models                                                          |
 | `AZURE_OPENAI_API_KEY`     | For Azure OpenAI models (optional when using Entra ID)                           |
 | `AZURE_OPENAI_API_VERSION` | For Azure OpenAI models                                                          |
@@ -250,7 +250,7 @@ OpenCode supports a variety of AI models from different providers:
 - Gemini 2.0 Flash
 - Gemini 2.0 Flash Lite
 
-### AWS Bedrock
+### Amazon Bedrock
 
 - Claude 3.7 Sonnet
 
