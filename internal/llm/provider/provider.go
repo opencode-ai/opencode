@@ -122,6 +122,11 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+	case models.ProviderDeepSeek:
+		return &baseProvider[DeepSeekClient]{
+			options: clientOptions,
+			client:  newDeepSeekClient(clientOptions),
+		}, nil
 	case models.ProviderAzure:
 		return &baseProvider[AzureClient]{
 			options: clientOptions,

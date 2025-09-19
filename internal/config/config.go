@@ -267,6 +267,9 @@ func setProviderDefaults() {
 	if apiKey := os.Getenv("GROQ_API_KEY"); apiKey != "" {
 		viper.SetDefault("providers.groq.apiKey", apiKey)
 	}
+	if apiKey := os.Getenv("DEEPSEEK_API_KEY"); apiKey != "" {
+		viper.SetDefault("providers.deepseek.apiKey", apiKey)
+	}
 	if apiKey := os.Getenv("OPENROUTER_API_KEY"); apiKey != "" {
 		viper.SetDefault("providers.openrouter.apiKey", apiKey)
 	}
@@ -337,6 +340,15 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.summarizer.model", models.QWENQwq)
 		viper.SetDefault("agents.task.model", models.QWENQwq)
 		viper.SetDefault("agents.title.model", models.QWENQwq)
+		return
+	}
+
+	// DeepSeek configuration
+	if key := viper.GetString("providers.deepseek.apiKey"); strings.TrimSpace(key) != "" {
+		viper.SetDefault("agents.coder.model", models.DeepSeekCoder)
+		viper.SetDefault("agents.summarizer.model", models.DeepSeekChat)
+		viper.SetDefault("agents.task.model", models.DeepSeekChat)
+		viper.SetDefault("agents.title.model", models.DeepSeekChat)
 		return
 	}
 
@@ -651,6 +663,8 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 		return os.Getenv("GEMINI_API_KEY")
 	case models.ProviderGROQ:
 		return os.Getenv("GROQ_API_KEY")
+	case models.ProviderDeepSeek:
+		return os.Getenv("DEEPSEEK_API_KEY")
 	case models.ProviderAzure:
 		return os.Getenv("AZURE_OPENAI_API_KEY")
 	case models.ProviderOpenRouter:
@@ -777,6 +791,34 @@ func setDefaultModelForAgent(agent AgentName) bool {
 		cfg.Agents[agent] = Agent{
 			Model:     models.QWENQwq,
 			MaxTokens: maxTokens,
+		}
+		return true
+	}
+
+	if apiKey := os.Getenv("DEEPSEEK_API_KEY"); apiKey != "" {
+		var model models.ModelID
+		maxTokens := int64(5000)
+		reasoningEffort := ""
+
+		switch agent {
+		case AgentTitle:
+			model = models.DeepSeekChat
+			maxTokens = 80
+		case AgentTask:
+			model = models.DeepSeekChat
+		default:
+			model = models.DeepSeekCoder
+		}
+
+		// Check if model supports reasoning
+		if modelInfo, ok := models.SupportedModels[model]; ok && modelInfo.CanReason {
+			reasoningEffort = "medium"
+		}
+
+		cfg.Agents[agent] = Agent{
+			Model:           model,
+			MaxTokens:       maxTokens,
+			ReasoningEffort: reasoningEffort,
 		}
 		return true
 	}

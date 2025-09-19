@@ -111,6 +111,7 @@ You can configure OpenCode using environment variables:
 | `VERTEXAI_PROJECT`         | For Google Cloud VertexAI (Gemini)                                               |
 | `VERTEXAI_LOCATION`        | For Google Cloud VertexAI (Gemini)                                               |
 | `GROQ_API_KEY`             | For Groq models                                                                  |
+| `DEEPSEEK_API_KEY`         | For DeepSeek models                                                              |
 | `AWS_ACCESS_KEY_ID`        | For AWS Bedrock (Claude)                                                         |
 | `AWS_SECRET_ACCESS_KEY`    | For AWS Bedrock (Claude)                                                         |
 | `AWS_REGION`               | For AWS Bedrock (Claude)                                                         |
@@ -157,6 +158,10 @@ This is useful if you want to use a different shell than your default system she
       "disabled": false
     },
     "groq": {
+      "apiKey": "your-api-key",
+      "disabled": false
+    },
+    "deepseek": {
       "apiKey": "your-api-key",
       "disabled": false
     },
@@ -261,6 +266,12 @@ OpenCode supports a variety of AI models from different providers:
 - QWEN QWQ-32b
 - Deepseek R1 distill Llama 70b
 - Llama 3.3 70b Versatile
+
+### DeepSeek
+
+- DeepSeek Chat
+- DeepSeek Coder
+- DeepSeek Reasoner (R1)
 
 ### Azure OpenAI
 
