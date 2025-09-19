@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/opencode-ai/opencode/internal/config"
+	"github.com/opencode-ai/opencode/internal/tui/terminal"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
@@ -542,7 +543,10 @@ func getColor(adaptiveColor lipgloss.AdaptiveColor) string {
 // highlightLine applies syntax highlighting to a single line
 func highlightLine(fileName string, line string, bg lipgloss.TerminalColor) string {
 	var buf bytes.Buffer
-	err := SyntaxHighlight(&buf, line, fileName, "terminal16m", bg)
+	// Use terminal-appropriate formatter instead of hardcoding terminal16m
+	colorProfile := terminal.GetColorProfile()
+	formatter := colorProfile.ChromaFormatter()
+	err := SyntaxHighlight(&buf, line, fileName, formatter, bg)
 	if err != nil {
 		return line
 	}
@@ -614,9 +618,36 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 	inSelection := false
 	currentPos := 0
 
-	// Get the appropriate color based on terminal background
-	bgColor := lipgloss.Color(getColor(highlightBg))
-	fgColor := lipgloss.Color(getColor(theme.CurrentTheme().Background()))
+	// Get the appropriate color based on terminal background and capabilities
+	bgColorHex := getColor(highlightBg)
+	fgColorHex := getColor(theme.CurrentTheme().Background())
+
+	// Generate appropriate color sequences based on terminal capabilities
+	colorProfile := terminal.GetColorProfile()
+	var bgColorSeq, fgColorSeq string
+
+	switch colorProfile {
+	case terminal.ProfileTrueColor:
+		// Use 24-bit true color
+		bgColor := lipgloss.Color(bgColorHex)
+		fgColor := lipgloss.Color(fgColorHex)
+		r, g, b, _ := fgColor.RGBA()
+		fgColorSeq = fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r>>8, g>>8, b>>8)
+		r, g, b, _ = bgColor.RGBA()
+		bgColorSeq = fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r>>8, g>>8, b>>8)
+	case terminal.Profile256Color:
+		// Use 256-color palette - convert RGB to closest 256-color index
+		bgColorSeq = fmt.Sprintf("\x1b[48;5;%dm", rgbTo256Color(bgColorHex))
+		fgColorSeq = fmt.Sprintf("\x1b[38;5;%dm", rgbTo256Color(fgColorHex))
+	case terminal.Profile16Color:
+		// Use basic 16-color palette - map to closest ANSI color
+		bgColorSeq = fmt.Sprintf("\x1b[%dm", rgbTo16ColorBg(bgColorHex))
+		fgColorSeq = fmt.Sprintf("\x1b[%dm", rgbTo16ColorFg(fgColorHex))
+	default:
+		// No color support - use default highlighting
+		bgColorSeq = "\x1b[7m" // Reverse video
+		fgColorSeq = ""
+	}
 
 	for i := 0; i < len(content); {
 		// Check if we're at an ANSI sequence
@@ -653,15 +684,17 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 			currentStyle := ansiSequences[currentPos]
 
 			// Apply foreground and background highlight
-			sb.WriteString("\x1b[38;2;")
-			r, g, b, _ := fgColor.RGBA()
-			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
-			sb.WriteString("\x1b[48;2;")
-			r, g, b, _ = bgColor.RGBA()
-			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
+			sb.WriteString(fgColorSeq)
+			sb.WriteString(bgColorSeq)
 			sb.WriteString(char)
-			// Reset foreground and background
-			sb.WriteString("\x1b[39m")
+
+			// Reset colors appropriately
+			if colorProfile >= terminal.Profile256Color {
+				sb.WriteString("\x1b[39m") // Reset foreground
+				sb.WriteString("\x1b[49m") // Reset background
+			} else {
+				sb.WriteString("\x1b[0m") // Full reset for simpler terminals
+			}
 
 			// Reapply the original ANSI sequence
 			sb.WriteString(currentStyle)
@@ -675,6 +708,80 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 	}
 
 	return sb.String()
+}
+
+// rgbTo256Color converts a hex color to the closest 256-color palette index
+func rgbTo256Color(hexColor string) int {
+	// Remove # if present
+	hexColor = strings.TrimPrefix(hexColor, "#")
+
+	// Parse RGB values
+	r, _ := strconv.ParseInt(hexColor[0:2], 16, 0)
+	g, _ := strconv.ParseInt(hexColor[2:4], 16, 0)
+	b, _ := strconv.ParseInt(hexColor[4:6], 16, 0)
+
+	// Convert to 6x6x6 color cube (colors 16-231)
+	if r == g && g == b {
+		// Grayscale (colors 232-255)
+		gray := int(r)
+		if gray < 8 {
+			return 16 // Black
+		} else if gray > 248 {
+			return 231 // White
+		} else {
+			return 232 + (gray-8)/10
+		}
+	}
+
+	// Convert to 6-level values
+	r6 := int(r) * 5 / 255
+	g6 := int(g) * 5 / 255
+	b6 := int(b) * 5 / 255
+
+	return 16 + 36*r6 + 6*g6 + b6
+}
+
+// rgbTo16ColorFg converts a hex color to the closest 16-color foreground ANSI code
+func rgbTo16ColorFg(hexColor string) int {
+	return rgbTo16ColorBase(hexColor, 30) // Foreground colors start at 30
+}
+
+// rgbTo16ColorBg converts a hex color to the closest 16-color background ANSI code
+func rgbTo16ColorBg(hexColor string) int {
+	return rgbTo16ColorBase(hexColor, 40) // Background colors start at 40
+}
+
+// rgbTo16ColorBase converts a hex color to the closest 16-color ANSI code
+func rgbTo16ColorBase(hexColor string, baseCode int) int {
+	// Remove # if present
+	hexColor = strings.TrimPrefix(hexColor, "#")
+
+	// Parse RGB values
+	r, _ := strconv.ParseInt(hexColor[0:2], 16, 0)
+	g, _ := strconv.ParseInt(hexColor[2:4], 16, 0)
+	b, _ := strconv.ParseInt(hexColor[4:6], 16, 0)
+
+	// Calculate brightness
+	brightness := (r*299 + g*587 + b*114) / 1000
+
+	// Map to closest ANSI color
+	if brightness < 64 {
+		return baseCode + 0 // Black
+	} else if r > g && r > b {
+		return baseCode + 1 // Red
+	} else if g > r && g > b {
+		return baseCode + 2 // Green
+	} else if (r + g) > b*2 {
+		return baseCode + 3 // Yellow
+	} else if b > r && b > g {
+		return baseCode + 4 // Blue
+	} else if (r + b) > g*2 {
+		return baseCode + 5 // Magenta
+	} else if (g + b) > r*2 {
+		return baseCode + 6 // Cyan
+	} else {
+		return baseCode + 7 // White
+	}
 }
 
 // renderLeftColumn formats the left side of a side-by-side diff
