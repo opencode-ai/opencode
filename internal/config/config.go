@@ -222,6 +222,9 @@ func configureViper() {
 	viper.AddConfigPath("$HOME")
 	viper.AddConfigPath(fmt.Sprintf("$XDG_CONFIG_HOME/%s", appName))
 	viper.AddConfigPath(fmt.Sprintf("$HOME/.config/%s", appName))
+	// this allows set variables more easily
+	// e.g. OPENCODE_AGENTS_CODER_MODEL=gpt-4.1-mini
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.SetEnvPrefix(strings.ToUpper(appName))
 	viper.AutomaticEnv()
 }

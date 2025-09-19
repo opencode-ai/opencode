@@ -12,8 +12,9 @@ import (
 )
 
 type LSParams struct {
-	Path   string   `json:"path"`
-	Ignore []string `json:"ignore"`
+	Path     string   `json:"path"`
+	MaxDepth int      `json:"max_depth"`
+	Ignore   []string `json:"ignore"`
 }
 
 type TreeNode struct {
@@ -63,7 +64,7 @@ TIPS:
 - Combine with other tools for more effective exploration`
 )
 
-func NewLsTool() BaseTool {
+func NewLsTool() *lsTool {
 	return &lsTool{}
 }
 
@@ -75,6 +76,11 @@ func (l *lsTool) Info() ToolInfo {
 			"path": map[string]any{
 				"type":        "string",
 				"description": "The path to the directory to list (defaults to current working directory)",
+			},
+			"max_depth": map[string]any{
+				// json schema integer: https://json-schema.org/understanding-json-schema/reference/numeric
+				"type":        "integer",
+				"description": "Limit the maximum depth to traversing depths(defaults to no limit, 0 or negative values also treated as no limit)",
 			},
 			"ignore": map[string]any{
 				"type":        "array",
@@ -93,7 +99,10 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
 		return NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
+	return l.RunWithParams(params)
+}
 
+func (l *lsTool) RunWithParams(params LSParams) (ToolResponse, error) {
 	searchPath := params.Path
 	if searchPath == "" {
 		searchPath = config.WorkingDirectory()
@@ -107,7 +116,7 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 		return NewTextErrorResponse(fmt.Sprintf("path does not exist: %s", searchPath)), nil
 	}
 
-	files, truncated, err := listDirectory(searchPath, params.Ignore, MaxLSFiles)
+	files, truncated, err := listDirectory(searchPath, params.Ignore, MaxLSFiles, params.MaxDepth)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error listing directory: %w", err)
 	}
@@ -128,7 +137,31 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	), nil
 }
 
-func listDirectory(initialPath string, ignorePatterns []string, limit int) ([]string, bool, error) {
+// shouldSkipDirDueToDepth checks if a directory should be skipped due to depth limits
+// Returns true if the directory should be skipped, false otherwise
+func shouldSkipDirDueToDepth(initialPath, currentPath string, maxDepth int) bool {
+	if maxDepth <= 0 {
+		return false
+	}
+
+	relPath, err := filepath.Rel(initialPath, currentPath)
+	if err != nil {
+		return false // Don't skip on error
+	}
+
+	// Calculate depth by counting directory separators
+	depth := 0
+	if relPath != "." {
+		// If there are no separators, it's still depth 1 (direct child)
+		// If there are separators, count them and add 1
+		depth = strings.Count(relPath, string(filepath.Separator)) + 1
+	}
+
+	// Skip directory traversal if we're at or beyond max depth
+	return depth >= maxDepth
+}
+
+func listDirectory(initialPath string, ignorePatterns []string, limit int, maxDepth int) ([]string, bool, error) {
 	var results []string
 	truncated := false
 
@@ -142,6 +175,16 @@ func listDirectory(initialPath string, ignorePatterns []string, limit int) ([]st
 				return filepath.SkipDir
 			}
 			return nil
+		}
+
+		// Check if we should skip due to depth limits (only for directories)
+		if info.IsDir() && shouldSkipDirDueToDepth(initialPath, path, maxDepth) {
+			// Still include this directory in results if it's not the initial path
+			if path != initialPath {
+				path = path + string(filepath.Separator)
+				results = append(results, path)
+			}
+			return filepath.SkipDir
 		}
 
 		if path != initialPath {

@@ -35,7 +35,7 @@ var OpenAIModels = map[ModelID]Model{
 		ID:                  GPT41Mini,
 		Name:                "GPT 4.1 mini",
 		Provider:            ProviderOpenAI,
-		APIModel:            "gpt-4.1",
+		APIModel:            "gpt-4.1-mini",
 		CostPer1MIn:         0.40,
 		CostPer1MInCached:   0.10,
 		CostPer1MOutCached:  0.0,

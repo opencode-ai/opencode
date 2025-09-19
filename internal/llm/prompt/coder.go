@@ -1,7 +1,6 @@
 package prompt
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -167,15 +166,25 @@ NEVER commit changes unless the user explicitly asks you to. It is VERY IMPORTAN
 
 You MUST answer concisely with fewer than 4 lines of text (not including tool use or code generation), unless user asks for detail.`
 
+// MAX_PROJECT_SIZE limits the project hierarchy to 4K
+const MAX_PROJECT_SIZE = 4 * 1024
+
 func getEnvironmentInfo() string {
 	cwd := config.WorkingDirectory()
 	isGit := isGitRepo(cwd)
 	platform := runtime.GOOS
 	date := time.Now().Format("1/2/2006")
 	ls := tools.NewLsTool()
-	r, _ := ls.Run(context.Background(), tools.ToolCall{
-		Input: `{"path":"."}`,
+	r, _ := ls.RunWithParams(tools.LSParams{
+		Path:     ".",
+		MaxDepth: 6,
 	})
+
+	// no more than 4k
+	projectContent := r.Content
+	if len(r.Content) > MAX_PROJECT_SIZE {
+		projectContent = r.Content[:MAX_PROJECT_SIZE] + "..."
+	}
 	return fmt.Sprintf(`Here is useful information about the environment you are running in:
 <env>
 Working directory: %s
@@ -186,7 +195,7 @@ Today's date: %s
 <project>
 %s
 </project>
-		`, cwd, boolToYesNo(isGit), platform, date, r.Content)
+		`, cwd, boolToYesNo(isGit), platform, date, projectContent)
 }
 
 func isGitRepo(dir string) bool {
