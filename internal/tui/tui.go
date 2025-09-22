@@ -52,8 +52,8 @@ var keys = keyMap{
 		key.WithHelp("ctrl+c", "quit"),
 	),
 	Help: key.NewBinding(
-		key.WithKeys("ctrl+_", "ctrl+h"),
-		key.WithHelp("ctrl+?", "toggle help"),
+		key.WithKeys("ctrl+?", "ctrl+/", "ctrl+_", "ctrl+h", "delete", "backspace"),
+		key.WithHelp("ctrl+?/ctrl+h", "toggle help"),
 	),
 
 	SwitchSession: key.NewBinding(
@@ -443,6 +443,13 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
+		// Special handling for Ctrl+? which might be interpreted as ESC in some terminals
+		if msg.Type == tea.KeyEsc && !a.showQuit && !a.showHelp && !a.showSessionDialog && !a.showCommandDialog && !a.showFilepicker && !a.showModelDialog && !a.showMultiArgumentsDialog {
+			// If ESC is pressed and no dialogs are open, treat it as potential Ctrl+? for help
+			a.showHelp = !a.showHelp
+			return a, nil
+		}
+
 		// If multi-arguments dialog is open, let it handle the key press first
 		if a.showMultiArgumentsDialog {
 			args, cmd := a.multiArgumentsDialog.Update(msg)
