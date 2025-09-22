@@ -207,10 +207,23 @@ func Load(workingDir string, debug bool) (*Config, error) {
 		cfg.Agents = make(map[AgentName]Agent)
 	}
 
+	// If no agents were configured, set up default agents based on available providers
+	if len(cfg.Agents) == 0 {
+		agentNames := []AgentName{AgentCoder, AgentSummarizer, AgentTask, AgentTitle}
+		for _, agentName := range agentNames {
+			if setDefaultModelForAgent(agentName) {
+				logging.Info("created default agent configuration", "agent", agentName, "model", cfg.Agents[agentName].Model)
+			}
+		}
+	}
+
 	// Override the max tokens for title agent
-	cfg.Agents[AgentTitle] = Agent{
-		Model:     cfg.Agents[AgentTitle].Model,
-		MaxTokens: 80,
+	if titleAgent, exists := cfg.Agents[AgentTitle]; exists {
+		cfg.Agents[AgentTitle] = Agent{
+			Model:           titleAgent.Model,
+			MaxTokens:       80,
+			ReasoningEffort: titleAgent.ReasoningEffort,
+		}
 	}
 	return cfg, nil
 }
