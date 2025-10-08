@@ -4,6 +4,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/opencode-ai/opencode/internal/tui/bindings"
+	"github.com/opencode-ai/opencode/internal/tui/events"
 	"github.com/opencode-ai/opencode/internal/tui/theme"
 )
 
@@ -18,6 +20,7 @@ type SplitPaneLayout interface {
 	ClearLeftPanel() tea.Cmd
 	ClearRightPanel() tea.Cmd
 	ClearBottomPanel() tea.Cmd
+	IsRightPanelHidden() bool
 }
 
 type splitPaneLayout struct {
@@ -29,6 +32,7 @@ type splitPaneLayout struct {
 	rightPanel  Container
 	leftPanel   Container
 	bottomPanel Container
+	hidden      bool
 }
 
 type SplitPaneOption func(*splitPaneLayout)
@@ -56,7 +60,10 @@ func (s *splitPaneLayout) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		return s, s.SetSize(msg.Width, msg.Height)
-	}
+	case events.ToggleSidebarMsg:
+        s.hidden = !s.hidden
+        return s, s.SetSize(s.width, s.height)
+    }
 
 	if s.rightPanel != nil {
 		u, cmd := s.rightPanel.Update(msg)
@@ -88,10 +95,10 @@ func (s *splitPaneLayout) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *splitPaneLayout) View() string {
 	var topSection string
 
-	if s.leftPanel != nil && s.rightPanel != nil {
+	if s.leftPanel != nil && s.rightPanel != nil && !s.hidden {
 		leftView := s.leftPanel.View()
 		rightView := s.rightPanel.View()
-		topSection = lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
+		topSection = lipgloss.JoinHorizontal(lipgloss.Bottom, leftView, rightView)
 	} else if s.leftPanel != nil {
 		topSection = s.leftPanel.View()
 	} else if s.rightPanel != nil {
@@ -135,11 +142,15 @@ func (s *splitPaneLayout) SetSize(width, height int) tea.Cmd {
 		bottomHeight = height - topHeight
 	} else {
 		topHeight = height
-		bottomHeight = 0
+		bottomHeight =  0
 	}
 
 	var leftWidth, rightWidth int
-	if s.leftPanel != nil && s.rightPanel != nil {
+	if s.hidden {
+		leftWidth = width
+		rightWidth =  0
+	}
+	if s.leftPanel != nil && s.rightPanel != nil && !s.hidden {
 		leftWidth = int(float64(width) * s.ratio)
 		rightWidth = width - leftWidth
 	} else if s.leftPanel != nil {
@@ -156,7 +167,7 @@ func (s *splitPaneLayout) SetSize(width, height int) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 
-	if s.rightPanel != nil {
+	if s.rightPanel != nil && !s.hidden {
 		cmd := s.rightPanel.SetSize(rightWidth, topHeight)
 		cmds = append(cmds, cmd)
 	}
@@ -170,6 +181,10 @@ func (s *splitPaneLayout) SetSize(width, height int) tea.Cmd {
 
 func (s *splitPaneLayout) GetSize() (int, int) {
 	return s.width, s.height
+}
+
+func (s *splitPaneLayout) IsRightPanelHidden() bool {
+	return s.hidden
 }
 
 func (s *splitPaneLayout) SetLeftPanel(panel Container) tea.Cmd {
@@ -222,21 +237,16 @@ func (s *splitPaneLayout) ClearBottomPanel() tea.Cmd {
 
 func (s *splitPaneLayout) BindingKeys() []key.Binding {
 	keys := []key.Binding{}
-	if s.leftPanel != nil {
-		if b, ok := s.leftPanel.(Bindings); ok {
-			keys = append(keys, b.BindingKeys()...)
-		}
+	if b, ok := s.leftPanel.(bindings.Bindings); ok {
+		keys = append(keys, b.BindingKeys()...)
 	}
-	if s.rightPanel != nil {
-		if b, ok := s.rightPanel.(Bindings); ok {
-			keys = append(keys, b.BindingKeys()...)
-		}
+	if b, ok := s.rightPanel.(bindings.Bindings); ok {
+		keys = append(keys, b.BindingKeys()...)
 	}
-	if s.bottomPanel != nil {
-		if b, ok := s.bottomPanel.(Bindings); ok {
-			keys = append(keys, b.BindingKeys()...)
-		}
+	if b, ok := s.bottomPanel.(bindings.Bindings); ok {
+		keys = append(keys, b.BindingKeys()...)
 	}
+
 	return keys
 }
 
