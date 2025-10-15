@@ -3,26 +3,29 @@ package models
 const (
 	ProviderOpenRouter ModelProvider = "openrouter"
 
-	OpenRouterGPT41          ModelID = "openrouter.gpt-4.1"
-	OpenRouterGPT41Mini      ModelID = "openrouter.gpt-4.1-mini"
-	OpenRouterGPT41Nano      ModelID = "openrouter.gpt-4.1-nano"
-	OpenRouterGPT45Preview   ModelID = "openrouter.gpt-4.5-preview"
-	OpenRouterGPT4o          ModelID = "openrouter.gpt-4o"
-	OpenRouterGPT4oMini      ModelID = "openrouter.gpt-4o-mini"
-	OpenRouterO1             ModelID = "openrouter.o1"
-	OpenRouterO1Pro          ModelID = "openrouter.o1-pro"
-	OpenRouterO1Mini         ModelID = "openrouter.o1-mini"
-	OpenRouterO3             ModelID = "openrouter.o3"
-	OpenRouterO3Mini         ModelID = "openrouter.o3-mini"
-	OpenRouterO4Mini         ModelID = "openrouter.o4-mini"
-	OpenRouterGemini25Flash  ModelID = "openrouter.gemini-2.5-flash"
-	OpenRouterGemini25       ModelID = "openrouter.gemini-2.5"
-	OpenRouterClaude35Sonnet ModelID = "openrouter.claude-3.5-sonnet"
-	OpenRouterClaude3Haiku   ModelID = "openrouter.claude-3-haiku"
-	OpenRouterClaude37Sonnet ModelID = "openrouter.claude-3.7-sonnet"
-	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
-	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
-	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
+	OpenRouterGPT41                 ModelID = "openrouter.gpt-4.1"
+	OpenRouterGPT41Mini             ModelID = "openrouter.gpt-4.1-mini"
+	OpenRouterGPT41Nano             ModelID = "openrouter.gpt-4.1-nano"
+	OpenRouterGPT45Preview          ModelID = "openrouter.gpt-4.5-preview"
+	OpenRouterGPT4o                 ModelID = "openrouter.gpt-4o"
+	OpenRouterGPT4oMini             ModelID = "openrouter.gpt-4o-mini"
+	OpenRouterO1                    ModelID = "openrouter.o1"
+	OpenRouterO1Pro                 ModelID = "openrouter.o1-pro"
+	OpenRouterO1Mini                ModelID = "openrouter.o1-mini"
+	OpenRouterO3                    ModelID = "openrouter.o3"
+	OpenRouterO3Mini                ModelID = "openrouter.o3-mini"
+	OpenRouterO4Mini                ModelID = "openrouter.o4-mini"
+	OpenRouterGemini25Flash         ModelID = "openrouter.gemini-2.5-flash"
+	OpenRouterGemini25FlashThinking ModelID = "openrouter.gemini-2.5-flash:thinking"
+	OpenRouterGemini25              ModelID = "openrouter.gemini-2.5"
+	OpenRouterClaude35Sonnet        ModelID = "openrouter.claude-3.5-sonnet"
+	OpenRouterClaude3Haiku          ModelID = "openrouter.claude-3-haiku"
+	OpenRouterClaude37Sonnet        ModelID = "openrouter.claude-3.7-sonnet"
+	OpenRouterClaude35Haiku         ModelID = "openrouter.claude-3.5-haiku"
+	OpenRouterClaude3Opus           ModelID = "openrouter.claude-3-opus"
+	OpenRouterClaude4Sonnet         ModelID = "openrouter.claude-4-sonnet"
+	OpenRouterClaude4Opus           ModelID = "openrouter.claude-4-opus"
+	OpenRouterDeepSeekR1Free        ModelID = "openrouter.deepseek-r1-free"
 )
 
 var OpenRouterModels = map[ModelID]Model{
@@ -177,9 +180,9 @@ var OpenRouterModels = map[ModelID]Model{
 	},
 	OpenRouterGemini25Flash: {
 		ID:                 OpenRouterGemini25Flash,
-		Name:               "OpenRouter – Gemini 2.5 Flash",
+		Name:               "OpenRouter – Gemini 2.5 Flash Preview 05-20",
 		Provider:           ProviderOpenRouter,
-		APIModel:           "google/gemini-2.5-flash-preview:thinking",
+		APIModel:           "google/gemini-2.5-flash-preview-05-20",
 		CostPer1MIn:        GeminiModels[Gemini25Flash].CostPer1MIn,
 		CostPer1MInCached:  GeminiModels[Gemini25Flash].CostPer1MInCached,
 		CostPer1MOut:       GeminiModels[Gemini25Flash].CostPer1MOut,
@@ -187,11 +190,23 @@ var OpenRouterModels = map[ModelID]Model{
 		ContextWindow:      GeminiModels[Gemini25Flash].ContextWindow,
 		DefaultMaxTokens:   GeminiModels[Gemini25Flash].DefaultMaxTokens,
 	},
+	OpenRouterGemini25FlashThinking: {
+		ID:                 OpenRouterGemini25FlashThinking,
+		Name:               "OpenRouter – Gemini 2.5 Flash Preview 05-20 (thinking)",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "google/gemini-2.5-flash-preview-05-20:thinking",
+		CostPer1MIn:        GeminiModels[Gemini25FlashThinking].CostPer1MIn,
+		CostPer1MInCached:  GeminiModels[Gemini25FlashThinking].CostPer1MInCached,
+		CostPer1MOut:       GeminiModels[Gemini25FlashThinking].CostPer1MOut,
+		CostPer1MOutCached: GeminiModels[Gemini25FlashThinking].CostPer1MOutCached,
+		ContextWindow:      GeminiModels[Gemini25FlashThinking].ContextWindow,
+		DefaultMaxTokens:   GeminiModels[Gemini25FlashThinking].DefaultMaxTokens,
+	},
 	OpenRouterGemini25: {
 		ID:                 OpenRouterGemini25,
 		Name:               "OpenRouter – Gemini 2.5 Pro",
 		Provider:           ProviderOpenRouter,
-		APIModel:           "google/gemini-2.5-pro-preview-03-25",
+		APIModel:           "google/gemini-2.5-pro-preview-05-06",
 		CostPer1MIn:        GeminiModels[Gemini25].CostPer1MIn,
 		CostPer1MInCached:  GeminiModels[Gemini25].CostPer1MInCached,
 		CostPer1MOut:       GeminiModels[Gemini25].CostPer1MOut,
@@ -236,6 +251,19 @@ var OpenRouterModels = map[ModelID]Model{
 		DefaultMaxTokens:   AnthropicModels[Claude37Sonnet].DefaultMaxTokens,
 		CanReason:          AnthropicModels[Claude37Sonnet].CanReason,
 	},
+	OpenRouterClaude4Sonnet: {
+		ID:                 OpenRouterClaude4Sonnet,
+		Name:               "OpenRouter – Claude Sonnet 4",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "anthropic/claude-sonnet-4",
+		CostPer1MIn:        AnthropicModels[Claude4Sonnet].CostPer1MIn,
+		CostPer1MInCached:  AnthropicModels[Claude4Sonnet].CostPer1MInCached,
+		CostPer1MOut:       AnthropicModels[Claude4Sonnet].CostPer1MOut,
+		CostPer1MOutCached: AnthropicModels[Claude4Sonnet].CostPer1MOutCached,
+		ContextWindow:      AnthropicModels[Claude4Sonnet].ContextWindow,
+		DefaultMaxTokens:   AnthropicModels[Claude4Sonnet].DefaultMaxTokens,
+		CanReason:          AnthropicModels[Claude4Sonnet].CanReason,
+	},
 	OpenRouterClaude35Haiku: {
 		ID:                 OpenRouterClaude35Haiku,
 		Name:               "OpenRouter – Claude 3.5 Haiku",
@@ -259,6 +287,18 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOutCached: AnthropicModels[Claude3Opus].CostPer1MOutCached,
 		ContextWindow:      AnthropicModels[Claude3Opus].ContextWindow,
 		DefaultMaxTokens:   AnthropicModels[Claude3Opus].DefaultMaxTokens,
+	},
+	OpenRouterClaude4Opus: {
+		ID:                 OpenRouterClaude4Opus,
+		Name:               "OpenRouter – Claude Opus 4",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "anthropic/claude-opus-4",
+		CostPer1MIn:        AnthropicModels[Claude4Opus].CostPer1MIn,
+		CostPer1MInCached:  AnthropicModels[Claude4Opus].CostPer1MInCached,
+		CostPer1MOut:       AnthropicModels[Claude4Opus].CostPer1MOut,
+		CostPer1MOutCached: AnthropicModels[Claude4Opus].CostPer1MOutCached,
+		ContextWindow:      AnthropicModels[Claude4Opus].ContextWindow,
+		DefaultMaxTokens:   AnthropicModels[Claude4Opus].DefaultMaxTokens,
 	},
 
 	OpenRouterDeepSeekR1Free: {
