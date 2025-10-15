@@ -180,9 +180,12 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	output += addLineNumbers(content, params.Offset+1)
 
 	// Add a note if the content was truncated
-	if lineCount > params.Offset+len(strings.Split(content, "\n")) {
+	// Normalize line endings for accurate counting
+	normalizedContent := strings.ReplaceAll(content, "\r\n", "\n")
+	contentLines := len(strings.Split(normalizedContent, "\n"))
+	if lineCount > params.Offset+contentLines {
 		output += fmt.Sprintf("\n\n(File has more lines. Use 'offset' parameter to read beyond line %d)",
-			params.Offset+len(strings.Split(content, "\n")))
+			params.Offset+contentLines)
 	}
 	output += "\n</file>\n"
 	output += getDiagnostics(filePath, v.lspClients)

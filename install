@@ -32,6 +32,11 @@ case "$filename" in
     ;;
     *)
         echo "${RED}Unsupported OS/Arch: $os/$arch${NC}"
+        echo "${YELLOW}Note: For Windows users:${NC}"
+        echo "  - Use WSL (Windows Subsystem for Linux) to run this script"
+        echo "  - Or download Windows releases directly from GitHub:"
+        echo "    https://github.com/opencode-ai/opencode/releases"
+        echo "  - Extract to a directory and add to PATH manually"
         exit 1
     ;;
 esac
@@ -109,6 +114,25 @@ add_to_path() {
         print_message warning "Manually add the directory to $config_file (or similar):"
         print_message info "  $command"
     fi
+}
+
+# Windows installation helper message
+show_windows_help() {
+    print_message info "${YELLOW}Windows Installation Notes:${NC}"
+    echo ""
+    print_message info "OpenCode supports Windows with automatic shell detection:"
+    print_message info "  • PowerShell Core (pwsh) - Recommended"
+    print_message info "  • Windows PowerShell (powershell) - Traditional"
+    print_message info "  • Command Prompt (cmd.exe) - Fallback"
+    echo ""
+    print_message info "Configuration file locations on Windows:"
+    print_message info "  • %USERPROFILE%\\.opencode.json"
+    print_message info "  • %XDG_CONFIG_HOME%\\opencode\\.opencode.json"
+    print_message info "  • %USERPROFILE%\\.config\\opencode\\.opencode.json"
+    echo ""
+    print_message info "Shell configuration example:"
+    print_message info '  {"shell": {"path": "pwsh", "args": ["-NoLogo", "-NoExit", "-Command", "-"]}}'
+    echo ""
 }
 
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
